@@ -49,6 +49,8 @@ func nonRecursiveWalk(path string, walk filepath.WalkFunc) error {
 type PictureGroup struct {
 	// Path is the absolute disk path of this folder/album
 	Path string `json:"-"`
+	// FolderName holds the name for this group's folder.
+	FolderName string `json:"-"`
 	// Title is a title representing this picture group/folder/album.
 	Title string `json:"title"`
 	// Pictures holds a map of references to all the pictures in this album.
@@ -66,7 +68,7 @@ type PictureGroup struct {
 
 // WriteMetadata will write metadata for this picture group to the passed io.Writer.
 func (pg *PictureGroup) WriteMetadata(metaDestination io.Writer) error {
-	serializedPG, err := json.Marshal(pg)
+	serializedPG, err := json.MarshalIndent(pg, "", "    ")
 	if err != nil {
 		return errors.Wrapf(err, "serializing %q picture group", pg.Path)
 	}
@@ -104,8 +106,11 @@ func (pg *PictureGroup) AddImage(path string) error {
 		accessible = false
 	}
 
+	_, fileName := filepath.Split(path)
+
 	image := &SinglePicture{
 		Path:        path,
+		FileName:    fileName,
 		Title:       "",
 		Description: "",
 		Visible:     true,
@@ -113,10 +118,10 @@ func (pg *PictureGroup) AddImage(path string) error {
 		Accessible:  accessible,
 	}
 
-	_, exists := pg.Pictures[path]
-	pg.Pictures[path] = image
+	_, exists := pg.Pictures[fileName]
+	pg.Pictures[fileName] = image
 	if !exists {
-		pg.Order = append(pg.Order, path)
+		pg.Order = append(pg.Order, fileName)
 	}
 	return nil
 }
@@ -133,8 +138,8 @@ func (pg *PictureGroup) AddSubGroup(fullPath, folderName string, recursive bool)
 		return errors.Wrapf(err, "constructing subfoler %q", folderName)
 	}
 
-	pg.SubGroups[folderName] = newPg
-	pg.SubGroupOrder = append(pg.SubGroupOrder, folderName)
+	pg.SubGroups[newPg.FolderName] = newPg
+	pg.SubGroupOrder = append(pg.SubGroupOrder, newPg.FolderName)
 	return nil
 }
 
@@ -261,8 +266,10 @@ func ensureMetaFile(path string) (metaFileAccessor, bool, error) {
 // NewPictureGroup returns a PictureGroup reference with loaded metadata which might be optionally
 // up to date. (this implies conciliation of filesystem with metadata files.)
 func NewPictureGroup(path string, update, recursive bool) (*PictureGroup, error) {
+	_, fileName := filepath.Split(path)
 	pg := &PictureGroup{
 		Path:          path,
+		FolderName:    fileName,
 		Pictures:      make(map[string]*SinglePicture),
 		Order:         []string{},
 		SubGroups:     map[string]*PictureGroup{},
@@ -296,7 +303,7 @@ func NewPictureGroup(path string, update, recursive bool) (*PictureGroup, error)
 		}
 	}
 
-	if created && update {
+	if created || update {
 		// We will write to this file again so we rewind it.
 		metaDataFile.Seek(0, io.SeekStart)
 		err = pg.WriteMetadata(metaDataFile)

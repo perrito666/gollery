@@ -30,9 +30,7 @@ func init() {
 		gnuflag.PrintDefaults()
 	}
 	buildMetadata := gnuflag.CommandLine.Bool("createmeta", false, "create the metadata files for album and optionally subfolders")
-	config.buildMetadata = *buildMetadata
 	recursive := gnuflag.CommandLine.Bool("recursive", true, "apply any action to the root album and subfolders")
-	config.recursive = *recursive
 
 	var err error
 	defer func() {
@@ -51,9 +49,14 @@ func init() {
 		err = ErrNoAlbumPath
 	}
 	config.albumPath = args[0]
+	config.buildMetadata = *buildMetadata
+	config.recursive = *recursive
 }
 
 func main() {
+	// TODO: Make path relative to abs
+	// Store both name and path in individual elements
+	// make some reload for server when files change
 	logger := log.New(os.Stdout, "GOLLERY: ", log.Ldate|log.Ltime|log.Lshortfile)
 	var err error
 	defer func() {
@@ -62,6 +65,7 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+	fmt.Printf("%#v\n", config)
 	if config.buildMetadata {
 		_, err = album.NewPictureGroup(config.albumPath, false, config.recursive)
 		if err != nil {

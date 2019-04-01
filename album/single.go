@@ -5,6 +5,8 @@ package album
 type SinglePicture struct {
 	// Path the relative path to the picture represented.
 	Path string `json:"path"`
+	// FileName holds the name for this picture's file.
+	FileName string `json:"file-name"`
 	// Title is a given title for this picture.
 	Title string `json:"title,omitempty"`
 	// Description is a description of this picture.
