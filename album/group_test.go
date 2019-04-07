@@ -155,7 +155,7 @@ func TestNewPictureGroup(t *testing.T) {
 			}
 			defer cleaner()
 			tt.args.path = dirPath
-			got, err := NewPictureGroup(tt.args.path, tt.args.update, tt.args.recursive)
+			got, err := NewPictureGroup(tt.args.path, []*ThumbSize{&DefaultThumbSize}, tt.args.update, tt.args.recursive)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewPictureGroup() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -177,8 +177,8 @@ func TestNewPictureGroup(t *testing.T) {
 					t.FailNow()
 				}
 			}
-			if strings.Count(metaDataText, fmt.Sprintf("[%q]", got.SubGroupOrder[0])) != 1 {
-				t.Log("subgroup not found")
+			if strings.Count(metaDataText, fmt.Sprintf("%q", got.SubGroupOrder[0])) != 1 {
+				t.Log(fmt.Sprintf("subgroup [%q] not found", got.SubGroupOrder[0]))
 				t.Logf("-------------------------------------------------\n")
 				t.Logf(metaDataText)
 				t.Logf("-------------------------------------------------\n")
@@ -198,15 +198,17 @@ func TestPictureGroup_NonDestructiveUpdateMetadata(t *testing.T) {
 			t.FailNow()
 		}
 		defer cleaner()
-		pg, err := NewPictureGroup(dirPath, false, true)
+		pg, err := NewPictureGroup(dirPath, []*ThumbSize{&DefaultThumbSize}, false, true)
 		if err != nil {
 			t.Errorf("NewPictureGroup() error = %v", err)
 			return
 		}
 		// Not the fanciest rename, but it should work
 		oldName := pg.Order[0]
+		oldPath := pg.Pictures[oldName].Path
+		newPath := oldPath + ".jpg"
 		newName := oldName + ".jpg"
-		os.Rename(oldName, newName)
+		os.Rename(oldPath, newPath)
 		if err := pg.NonDestructiveUpdateMetadata(true); err != nil {
 			t.Errorf("PictureGroup.NonDestructiveUpdateMetadata() error = %v", err)
 			return

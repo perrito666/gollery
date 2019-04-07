@@ -45,6 +45,20 @@ func nonRecursiveWalk(path string, walk filepath.WalkFunc) error {
 	return nil
 }
 
+// ThumbSize represents the size of a thumbnail image.
+type ThumbSize struct {
+	Width  uint `json:"width"`
+	Height uint `json:"height"`
+}
+
+// DefaultThumbSize is the size we swill use for thumbnails if none is defined
+// the number is super retro and it was picked arbitrarily beacause it's the only
+// number I can think out of the top of my head on a plane.
+var DefaultThumbSize = ThumbSize{
+	Width:  640,
+	Height: 480,
+}
+
 // PictureGroup holds information about a group of pictures from an album
 type PictureGroup struct {
 	// Path is the absolute disk path of this folder/album
@@ -64,6 +78,11 @@ type PictureGroup struct {
 	SubGroups map[string]*PictureGroup `json:"-"`
 	// SubGroupOrder is the ordering of display for the subgroups, we store this.
 	SubGroupOrder []string `json:"sub-group-order"`
+
+	// AllowedThumbSizes holds all the allowed thumbnail sizes for this and children groups
+	// it will override parent sizes and be inherited by children that do not specify them, if
+	// none is defined it will default to one sane size.
+	AllowedThumbSizes []*ThumbSize `json:"allowed-thumb-sizes,omitempty"`
 }
 
 // WriteMetadata will write metadata for this picture group to the passed io.Writer.
@@ -128,7 +147,7 @@ func (pg *PictureGroup) AddImage(path string) error {
 
 // AddSubGroup construct a SubGroup that lives under this one
 func (pg *PictureGroup) AddSubGroup(fullPath, folderName string, recursive bool) error {
-	newPg, err := NewPictureGroup(fullPath, false, recursive)
+	newPg, err := NewPictureGroup(fullPath, pg.AllowedThumbSizes, false, recursive)
 	if err != nil {
 		return errors.Wrap(err, "constructing sub picture group")
 	}
@@ -212,7 +231,7 @@ func (pg *PictureGroup) NonDestructiveUpdateMetadata(recursive bool) error {
 			if err != nil {
 				return errors.Wrapf(err, "processing image %q", path)
 			}
-			files = append(files, path)
+			files = append(files, filename)
 		}
 
 		return nil
@@ -224,10 +243,10 @@ func (pg *PictureGroup) NonDestructiveUpdateMetadata(recursive bool) error {
 	for _, picture := range pg.Pictures {
 		picture.Existing = false
 	}
-	for _, picturePath := range files {
-		pic, ok := pg.Pictures[picturePath]
+	for _, pictureName := range files {
+		pic, ok := pg.Pictures[pictureName]
 		if !ok {
-			return errors.Errorf("consistency error, %q detail dissapeared from our records", picturePath)
+			return errors.Errorf("consistency error, %q detail dissapeared from our records", pictureName)
 		}
 		pic.Existing = true
 	}
@@ -265,7 +284,7 @@ func ensureMetaFile(path string) (metaFileAccessor, bool, error) {
 
 // NewPictureGroup returns a PictureGroup reference with loaded metadata which might be optionally
 // up to date. (this implies conciliation of filesystem with metadata files.)
-func NewPictureGroup(path string, update, recursive bool) (*PictureGroup, error) {
+func NewPictureGroup(path string, allowedThumbsSizes []*ThumbSize, update, recursive bool) (*PictureGroup, error) {
 	_, fileName := filepath.Split(path)
 	pg := &PictureGroup{
 		Path:          path,
@@ -310,6 +329,11 @@ func NewPictureGroup(path string, update, recursive bool) (*PictureGroup, error)
 		if err != nil {
 			return nil, errors.Wrap(err, "writing up-to-date metadata to file")
 		}
+	}
+
+	// Let us not write this for now as it should be only in the main folder usually.
+	if pg.AllowedThumbSizes == nil {
+		pg.AllowedThumbSizes = allowedThumbsSizes
 	}
 
 	return pg, nil
