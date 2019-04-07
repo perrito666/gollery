@@ -9,14 +9,14 @@ var singleImageDefaultTemplate = []byte(`<html>
 <nav class="breadcrumb">
     <p>
         {{range .ParentTree}}
-        <a href="{{.Path}}">{{.FolderName}}</a>/
+        <a href="{{.RelativePath}}">{{.FolderName}}</a>/
         {{end}}
     </p>
 </nav>
 <nav class="tree">
     {{/* Device a logic for current so we can add a class */}}
     {{range .Siblings}}
-    <a href="{{.FileName}}" class="sibling_picture">{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}</a>
+    <a href="{{.FileName}}" class="sibling_picture{{if .Current}} current_image{{end}}">{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}</a>
     {{end}}
     {{range .Children}}
     <a href="{{.FolderName}}" class="sibling_album">{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</a>
@@ -51,26 +51,15 @@ var groupDefaultTemplate = []byte(`<html>
 <nav class="breadcrumb">
     <p>
         {{range .ParentTree}}
-        <a href="{{.Path}}">{{.FolderName}}</a>/
+        <a href="{{.RelativePath}}">{{.FolderName}}</a>/
         {{end}}
     </p>
 </nav>
 <nav class="tree">
     {{/* Device a logic for current so we can add a class */}}
     {{range .Siblings}}
-    <a href="{{.FileName}}" class="sibling_picture">{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}</a>
-    {{end}}
-    {{range .Children}}
     <a href="{{.FolderName}}" class="sibling_album">{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</a>
     {{end}}
-</nav>
-<nav class="relative">
-    <a href="{{.First}}" class="first_picture">{{if .First.Title}} {{.First.Title}} {{else}} {{.First.FileName}}
-        {{end}}</a>
-    <a href="{{.Previous}}" class="previous_picture">{{if .Previous.Title}} {{.Previous.Title}} {{else}}
-        {{.Previous.FileName}} {{end}}</a>
-    <a href="{{.Next}}" class="next_picture">{{if .Next.Title}} {{.Next.Title}} {{else}} {{.Next.FileName}} {{end}}</a>
-    <a href="{{.Last}}" class="last_picture">{{if .Last.Title}} {{.Last.Title}} {{else}} {{.Last.FileName}} {{end}}</a>
 </nav>
 <header>
     <h1>{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}</h1>

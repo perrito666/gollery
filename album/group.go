@@ -61,6 +61,11 @@ var DefaultThumbSize = ThumbSize{
 
 // PictureGroup holds information about a group of pictures from an album
 type PictureGroup struct {
+	// Parent is the blatant irony spitting in my face reminding us that, even if you don't think
+	// you will ever use a linked list in real life scenarios, life is long.
+	// it also contains a reference to the containing folder of this one, if any (notice that we
+	// will only go as deep as the path passed to initialize the outmost album)
+	Parent *PictureGroup `json:"-"`
 	// Path is the absolute disk path of this folder/album
 	Path string `json:"-"`
 	// FolderName holds the name for this group's folder.
@@ -147,7 +152,7 @@ func (pg *PictureGroup) AddImage(path string) error {
 
 // AddSubGroup construct a SubGroup that lives under this one
 func (pg *PictureGroup) AddSubGroup(fullPath, folderName string, recursive bool) error {
-	newPg, err := NewPictureGroup(fullPath, pg.AllowedThumbSizes, false, recursive)
+	newPg, err := NewPictureGroup(fullPath, pg.AllowedThumbSizes, false, recursive, pg)
 	if err != nil {
 		return errors.Wrap(err, "constructing sub picture group")
 	}
@@ -284,9 +289,10 @@ func ensureMetaFile(path string) (metaFileAccessor, bool, error) {
 
 // NewPictureGroup returns a PictureGroup reference with loaded metadata which might be optionally
 // up to date. (this implies conciliation of filesystem with metadata files.)
-func NewPictureGroup(path string, allowedThumbsSizes []*ThumbSize, update, recursive bool) (*PictureGroup, error) {
+func NewPictureGroup(path string, allowedThumbsSizes []*ThumbSize, update, recursive bool, parent *PictureGroup) (*PictureGroup, error) {
 	_, fileName := filepath.Split(path)
 	pg := &PictureGroup{
+		Parent:        parent,
 		Path:          path,
 		FolderName:    fileName,
 		Pictures:      make(map[string]*SinglePicture),

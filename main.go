@@ -71,6 +71,21 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+
+	var currentTheme *render.Theme
+	if config.buildTheme != "" {
+		if config.themeFolder == "" {
+			logger.Fatal("cannot create a template without a template path")
+			return
+		}
+		currentTheme = render.NewTheme(config.buildTheme, config.themeFolder)
+		err = currentTheme.Create()
+		if err != nil {
+			logger.Fatalf("initializing theme: %v", err)
+			return
+		}
+	}
+
 	fmt.Printf("%#v\n", config)
 	if config.buildMetadata {
 		_, err = album.NewPictureGroup(
@@ -88,18 +103,7 @@ func main() {
 		logger.Printf(successMsg)
 		return
 	}
-	if config.buildTheme != "" {
-		if config.themeFolder == "" {
-			logger.Fatal("cannot create a template without a template path")
-			return
-		}
-		currentTheme := render.NewTheme(config.buildTheme, config.themeFolder)
-		err = currentTheme.Create()
-		if err != nil {
-			logger.Fatalf("initializing theme: %v", err)
-			return
-		}
-	}
+
 	// TODO Serve
 	// TODO add traverse where each folder receives a path, removes it's part and passes the rest
 

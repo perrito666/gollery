@@ -2,8 +2,12 @@ package render
 
 import (
 	"encoding/json"
+	"html/template"
+	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/perrito666/gollery/album"
 
 	"github.com/pkg/errors"
 )
@@ -41,8 +45,10 @@ func NewTheme(name, path string) *Theme {
 // Theme is a set of templates to display an album or single file
 type Theme struct {
 	// Path points to the relative or absolute path where the templates are stored.
-	Path string
-	Name string
+	Path               string
+	Name               string
+	singlePageTemplate *template.Template
+	folderTemplate     *template.Template
 }
 
 // ensureFolder will make a significant effort to attempt creation of a given theme folder
@@ -147,4 +153,57 @@ func (t *Theme) WriteConfig() error {
 		return errors.Wrap(err, "writing serialized theme configto file")
 	}
 	return nil
+}
+
+func (t *Theme) maybeLoadSingleTemplate() error {
+	if t.singlePageTemplate != nil {
+		return nil
+	}
+	filePath := filepath.Join(t.Path, singleTemplateFileName)
+	var err error
+	t.singlePageTemplate, err = template.New("singlepicture").ParseFiles(filePath)
+	if err != nil {
+		return errors.Wrapf(err, "loading %q template for single images", filePath)
+	}
+	return nil
+}
+func (t *Theme) maybeLoadPageTemplate() error {
+	if t.folderTemplate != nil {
+		return nil
+	}
+	filePath := filepath.Join(t.Path, groupTemplateFileName)
+	var err error
+	t.folderTemplate, err = template.New("folder").ParseFiles(filePath)
+	if err != nil {
+		return errors.Wrapf(err, "loading %q template for folders", filePath)
+	}
+	return nil
+}
+
+// RenderPicture render the passed picture page into the passed io.Writer
+func (t *Theme) RenderPicture(folder *album.PictureGroup, img *album.SinglePicture, destination io.Writer) ([]byte, error) {
+	err := t.maybeLoadSingleTemplate()
+	if err != nil {
+		return nil, errors.Wrap(err, "loading template to render single image")
+	}
+	picture := NewRendereableImage(folder, img)
+	err = t.singlePageTemplate.Execute(destination, picture)
+	if err != nil {
+		return nil, errors.Wrap(err, "rendering image template")
+	}
+	return nil, nil
+}
+
+// RenderFolder renders the passed folder into the passed io.Writer
+func (t *Theme) RenderFolder(folder *album.PictureGroup, destination io.Writer) ([]byte, error) {
+	err := t.maybeLoadPageTemplate()
+	if err != nil {
+		return nil, errors.Wrap(err, "loading template to render folder")
+	}
+	albumFolder := NewRendereablePage(folder)
+	err = t.folderTemplate.Execute(destination, albumFolder)
+	if err != nil {
+		return nil, errors.Wrap(err, "rendering folder template")
+	}
+	return nil, nil
 }

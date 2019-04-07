@@ -155,7 +155,7 @@ func TestNewPictureGroup(t *testing.T) {
 			}
 			defer cleaner()
 			tt.args.path = dirPath
-			got, err := NewPictureGroup(tt.args.path, []*ThumbSize{&DefaultThumbSize}, tt.args.update, tt.args.recursive)
+			got, err := NewPictureGroup(tt.args.path, []*ThumbSize{&DefaultThumbSize}, tt.args.update, tt.args.recursive, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewPictureGroup() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -198,7 +198,7 @@ func TestPictureGroup_NonDestructiveUpdateMetadata(t *testing.T) {
 			t.FailNow()
 		}
 		defer cleaner()
-		pg, err := NewPictureGroup(dirPath, []*ThumbSize{&DefaultThumbSize}, false, true)
+		pg, err := NewPictureGroup(dirPath, []*ThumbSize{&DefaultThumbSize}, false, true, nil)
 		if err != nil {
 			t.Errorf("NewPictureGroup() error = %v", err)
 			return
