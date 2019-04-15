@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -116,6 +117,8 @@ type PictureGroup struct {
 	// it will override parent sizes and be inherited by children that do not specify them, if
 	// none is defined it will default to one sane size.
 	AllowedThumbSizes []*ThumbSize `json:"allowed-thumb-sizes,omitempty"`
+	// Logger holds a logger
+	Logger *log.Logger `json:"-"`
 }
 
 // HasSubAlbum returns true if the passed in name matches a subFolder.
@@ -247,7 +250,7 @@ func (pg *PictureGroup) AddImage(path string) error {
 
 // AddSubGroup construct a SubGroup that lives under this one
 func (pg *PictureGroup) AddSubGroup(fullPath, folderName string, recursive bool) error {
-	newPg, err := NewPictureGroup(fullPath, pg.AllowedThumbSizes, false, recursive, pg)
+	newPg, err := NewPictureGroup(pg.Logger, fullPath, pg.AllowedThumbSizes, false, recursive, pg)
 	if err != nil {
 		return errors.Wrap(err, "constructing sub picture group")
 	}
@@ -384,9 +387,10 @@ func ensureMetaFile(path string) (metaFileAccessor, bool, error) {
 
 // NewPictureGroup returns a PictureGroup reference with loaded metadata which might be optionally
 // up to date. (this implies conciliation of filesystem with metadata files.)
-func NewPictureGroup(path string, allowedThumbsSizes []*ThumbSize, update, recursive bool, parent *PictureGroup) (*PictureGroup, error) {
+func NewPictureGroup(logger *log.Logger, path string, allowedThumbsSizes []*ThumbSize, update, recursive bool, parent *PictureGroup) (*PictureGroup, error) {
 	_, fileName := filepath.Split(path)
 	pg := &PictureGroup{
+		Logger:        logger,
 		Parent:        parent,
 		Path:          path,
 		FolderName:    fileName,

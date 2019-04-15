@@ -117,9 +117,8 @@ func main() {
 		}
 	}
 
-	//fmt.Printf("%#v\n", config) // ye ole print debug, sue me
 	var pictureGroup *album.PictureGroup
-	pictureGroup, err = album.NewPictureGroup(
+	pictureGroup, err = album.NewPictureGroup(logger,
 		config.albumPath,
 		[]*album.ThumbSize{&album.DefaultThumbSize},
 		false, config.recursive, nil)
@@ -141,6 +140,7 @@ func main() {
 
 	logger.Print("STARTED")
 	srv := &server.AlbumServer{
+		Logger:     logger,
 		RootFolder: pictureGroup,
 		Port:       8080,
 		ThemePath:  config.themeFolder,

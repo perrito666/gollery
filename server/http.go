@@ -75,6 +75,7 @@ type AlbumServer struct {
 	Port       int
 	ThemePath  string
 	Theme      *render.Theme
+	Logger     *log.Logger
 }
 
 func serveFolder(w http.ResponseWriter, r *http.Request, folder *album.PictureGroup, theme *render.Theme) {
@@ -123,7 +124,7 @@ func (a *AlbumServer) handler(w http.ResponseWriter, r *http.Request) {
 			err := a.Theme.RenderPicture(folder, folder.Pictures[component], buf)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(fmt.Sprintf("500 boom %v", err)))
+				a.Logger.Printf("ERROR: %v", err)
 				return
 			}
 			w.Write(buf.Bytes())
@@ -149,7 +150,7 @@ func (a *AlbumServer) handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	}
-	fmt.Fprintf(w, "GHAAAA %s!", r.URL.Path[1:])
+	w.WriteHeader(http.StatusNotFound)
 }
 
 type themedNotFound struct {

@@ -117,7 +117,7 @@ func (s *SinglePicture) ensureThumbnail(width, height uint) error {
 	if err != nil {
 		return errors.Wrap(err, "encoding and storing image")
 	}
-	fmt.Printf("Created thumb %s\n", path)
+	s.Parent.Logger.Printf("Created thumb %s", path)
 	return nil
 }
 
