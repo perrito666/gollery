@@ -56,7 +56,8 @@ var themeFolders = []string{
 	templateFolderName, // html files will be built with these.
 	"js",               // this will be served under /js ideally should contain javasript
 	"css",              // this will be serve under /css ideally should contain css styles
-	"html",             // this will be served under / and contains pages other than index.html
+	"html",             // this will be served under /html and contains pages other than index.html such as 404.html
+	"img",              // this will be suerved under /img and contains images used for theme images
 }
 
 // NewTheme constructs a theme with the required parameters.
@@ -184,9 +185,9 @@ func (t *Theme) maybeLoadSingleTemplate() error {
 	if t.singlePageTemplate != nil {
 		return nil
 	}
-	filePath := filepath.Join(t.Path, singleTemplateFileName)
+	filePath := filepath.Join(t.Path, templateFolderName, singleTemplateFileName)
 	var err error
-	t.singlePageTemplate, err = template.New("singlepicture").ParseFiles(filePath)
+	t.singlePageTemplate, err = template.New(singleTemplateFileName).ParseFiles(filePath)
 	if err != nil {
 		return errors.Wrapf(err, "loading %q template for single images", filePath)
 	}
@@ -196,9 +197,9 @@ func (t *Theme) maybeLoadPageTemplate() error {
 	if t.folderTemplate != nil {
 		return nil
 	}
-	filePath := filepath.Join(t.Path, groupTemplateFileName)
+	filePath := filepath.Join(t.Path, templateFolderName, groupTemplateFileName)
 	var err error
-	t.folderTemplate, err = template.New("folder").ParseFiles(filePath)
+	t.folderTemplate, err = template.New(groupTemplateFileName).ParseFiles(filePath)
 	if err != nil {
 		return errors.Wrapf(err, "loading %q template for folders", filePath)
 	}
@@ -206,29 +207,29 @@ func (t *Theme) maybeLoadPageTemplate() error {
 }
 
 // RenderPicture render the passed picture page into the passed io.Writer
-func (t *Theme) RenderPicture(folder *album.PictureGroup, img *album.SinglePicture, destination io.Writer) ([]byte, error) {
+func (t *Theme) RenderPicture(folder *album.PictureGroup, img *album.SinglePicture, destination io.Writer) error {
 	err := t.maybeLoadSingleTemplate()
 	if err != nil {
-		return nil, errors.Wrap(err, "loading template to render single image")
+		return errors.Wrap(err, "loading template to render single image")
 	}
 	picture := NewRendereableImage(folder, img)
 	err = t.singlePageTemplate.Execute(destination, picture)
 	if err != nil {
-		return nil, errors.Wrap(err, "rendering image template")
+		return errors.Wrap(err, "rendering image template")
 	}
-	return nil, nil
+	return nil
 }
 
 // RenderFolder renders the passed folder into the passed io.Writer
-func (t *Theme) RenderFolder(folder *album.PictureGroup, destination io.Writer) ([]byte, error) {
+func (t *Theme) RenderFolder(folder *album.PictureGroup, destination io.Writer) error {
 	err := t.maybeLoadPageTemplate()
 	if err != nil {
-		return nil, errors.Wrap(err, "loading template to render folder")
+		return errors.Wrap(err, "loading template to render folder")
 	}
-	albumFolder := NewRendereablePage(folder)
-	err = t.folderTemplate.Execute(destination, albumFolder)
+	albumFolder := NewRendereablePage(*folder, true)
+	err = t.folderTemplate.Execute(destination, *albumFolder)
 	if err != nil {
-		return nil, errors.Wrap(err, "rendering folder template")
+		return errors.Wrap(err, "rendering folder template")
 	}
-	return nil, nil
+	return nil
 }

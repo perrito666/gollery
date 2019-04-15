@@ -33,27 +33,35 @@ var singleImageDefaultTemplate = []byte(`<html>
 </head>
 <nav class="breadcrumb">
     <p>
+    {{if .ParentTree}}
         {{range .ParentTree}}
-        <a href="{{.RelativePath}}">{{.FolderName}}</a>/
+        <a href="{{.TraversePath}}">{{.FolderName}}</a>/
         {{end}}
+    {{end}}
     </p>
 </nav>
 <nav class="tree">
     {{/* Device a logic for current so we can add a class */}}
     {{range .Siblings}}
-    <a href="{{.FileName}}" class="sibling_picture{{if .Current}} current_image{{end}}">{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}</a>
+    <a href="{{.TraversePath}}" class="sibling_album">{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</a>
     {{end}}
     {{range .Children}}
-    <a href="{{.FolderName}}" class="sibling_album">{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</a>
+    <a href="{{.TraversePath}}" class="children_album">{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</a>
     {{end}}
 </nav>
 <nav class="relative">
-    <a href="{{.First}}" class="first_picture">{{if .First.Title}} {{.First.Title}} {{else}} {{.First.FileName}}
-        {{end}}</a>
-    <a href="{{.Previous}}" class="previous_picture">{{if .Previous.Title}} {{.Previous.Title}} {{else}}
-        {{.Previous.FileName}} {{end}}</a>
-    <a href="{{.Next}}" class="next_picture">{{if .Next.Title}} {{.Next.Title}} {{else}} {{.Next.FileName}} {{end}}</a>
-    <a href="{{.Last}}" class="last_picture">{{if .Last.Title}} {{.Last.Title}} {{else}} {{.Last.FileName}} {{end}}</a>
+    {{if .First}}
+    <a href="{{.First.FileName}}" class="first_picture">First</a>
+    {{end}}
+    {{if .Previous}}
+    <a href="{{.Previous.FileName}}" class="previous_picture">Previous</a>
+    {{end}}
+    {{if .Next}}
+    <a href="{{.Next.FileName}}" class="next_picture">Next</a>
+    {{end}}
+    {{if .Last}}
+    <a href="{{.Last.FileName}}" class="last_picture">Last</a>
+    {{end}}
 </nav>
 <header>
     <h1>{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}</h1>
@@ -70,19 +78,24 @@ var singleImageDefaultTemplate = []byte(`<html>
 var groupDefaultTemplate = []byte(`<html>
 
 <head>
-    <title>{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}</title>
+    <title>{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</title>
     <description>{{.Description}}</description>
 </head>
 <nav class="breadcrumb">
     <p>
+    {{if .ParentTree}}
         {{range .ParentTree}}
-        <a href="{{.RelativePath}}">{{.FolderName}}</a>/
+        <a href="{{.TraversePath}}">{{.FolderName}}</a>/
         {{end}}
+    {{end}}
     </p>
 </nav>
 <nav class="tree">
     {{/* Device a logic for current so we can add a class */}}
     {{range .Siblings}}
+    <a href="{{.FolderName}}" class="sibling_album">{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</a>
+    {{end}}
+    {{range .Children}}
     <a href="{{.FolderName}}" class="sibling_album">{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</a>
     {{end}}
 </nav>
@@ -94,7 +107,7 @@ var groupDefaultTemplate = []byte(`<html>
     <section class="thumb">
         <a href="{{.FileName}}">
             {{/* thumbs are obtaining by GETing FileName___widthxheight assuming said size is permitted if it is not you just get the default one */}}
-            <img src="{{.FileName}}___640x480" alt="{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}">
+            <img src="{{.ThumbName 640 480}}" alt="{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}">
             <p>{{.Description}}{{/* perhaps this could be truncated */}}</p>
         </a>
     </section>

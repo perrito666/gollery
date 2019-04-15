@@ -33,6 +33,8 @@ import (
 	"image/png"
 	"io"
 	"os"
+	"path"
+	"path/filepath"
 
 	"github.com/nfnt/resize"
 	"github.com/pkg/errors"
@@ -41,6 +43,7 @@ import (
 // SinglePicture contains the information pertaining a one picture of a folder, if nothing
 // else the path should be there.
 type SinglePicture struct {
+	Parent *PictureGroup `json:"-"`
 	// Path the relative path to the picture represented.
 	Path string `json:"path"`
 	// FileName holds the name for this picture's file.
@@ -57,8 +60,14 @@ type SinglePicture struct {
 	Accessible bool `json:"accessible"`
 }
 
-func (s *SinglePicture) thumbName(width, height uint) string {
-	return fmt.Sprintf("%s_%d_x_%d", s.Path, width, height)
+// ThumbName returns the file name of the thumb for this picture with the given size
+func (s *SinglePicture) ThumbName(width, height uint) string {
+	return fmt.Sprintf("%s_%d_x_%d", s.RelativePath(), width, height)
+}
+
+// FileSystemThumb returns the file path of the thumb for this picture with the given size
+func (s *SinglePicture) FileSystemThumb(width, height uint) string {
+	return fmt.Sprintf("%s_%d_x_%d", filepath.Join(s.Parent.TraverseFileSystemPath(), s.FileName), width, height)
 }
 
 // ensureThumbnail makes a very best effort to create a thumbnail in the given sizes
@@ -66,7 +75,7 @@ func (s *SinglePicture) thumbName(width, height uint) string {
 // resize.Resize(width, height uint, img image.Image, interp resize.InterpolationFunction) image.Image
 // resize.Thumbnail(maxWidth, maxHeight uint, img image.Image, interp resize.InterpolationFunction) image.Image
 func (s *SinglePicture) ensureThumbnail(width, height uint) error {
-	path := s.thumbName(width, height)
+	path := s.FileSystemThumb(width, height)
 	_, err := os.Stat(path)
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "checking metadata for thumbnail file %q existence", path)
@@ -77,9 +86,9 @@ func (s *SinglePicture) ensureThumbnail(width, height uint) error {
 	var thumbFile *os.File
 	var imageFile *os.File
 
-	imageFile, err = os.OpenFile(path, os.O_RDONLY, 0655)
+	imageFile, err = os.OpenFile(s.Path, os.O_RDONLY, 0655)
 	if err != nil {
-		return errors.Wrapf(err, "opening image file %q to generate thumbnail", path)
+		return errors.Wrapf(err, "opening image file %q to generate thumbnail", s.Path)
 	}
 	defer imageFile.Close()
 	imgData, imageDecoder, err := image.Decode(imageFile)
@@ -108,6 +117,7 @@ func (s *SinglePicture) ensureThumbnail(width, height uint) error {
 	if err != nil {
 		return errors.Wrap(err, "encoding and storing image")
 	}
+	fmt.Printf("Created thumb %s\n", path)
 	return nil
 }
 
@@ -120,11 +130,20 @@ func (s *SinglePicture) Thumbnail(width, height uint) (io.ReadCloser, error) {
 		return nil, errors.Wrap(err, "cannot ensure thumbnails existence")
 	}
 
-	path := s.thumbName(width, height)
+	path := s.ThumbName(width, height)
 	thumbFile, err := os.OpenFile(path, os.O_RDONLY, 0655)
 	if err != nil {
 		return nil, errors.Wrapf(err, "opening thumbnail file %q for reading", path)
 	}
 
 	return thumbFile, nil
+}
+
+// RelativePath returns this file's path relative to the root album.
+func (s *SinglePicture) RelativePath() string {
+	if s.Parent == nil {
+		// FIXME parent should never be nil
+		return path.Join("/", s.FileName)
+	}
+	return path.Join(s.Parent.TraversePath(), s.FileName)
 }

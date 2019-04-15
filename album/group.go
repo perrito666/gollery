@@ -30,6 +30,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -97,6 +98,8 @@ type PictureGroup struct {
 	FolderName string `json:"-"`
 	// Title is a title representing this picture group/folder/album.
 	Title string `json:"title"`
+	// Description is a description of this folder.
+	Description string `json:"description,omitempty"`
 	// Pictures holds a map of references to all the pictures in this album.
 	Pictures map[string]*SinglePicture `json:"pictures"`
 	// Order contains a list of strings ordered in the way the items in this album
@@ -113,6 +116,49 @@ type PictureGroup struct {
 	// it will override parent sizes and be inherited by children that do not specify them, if
 	// none is defined it will default to one sane size.
 	AllowedThumbSizes []*ThumbSize `json:"allowed-thumb-sizes,omitempty"`
+}
+
+// HasSubAlbum returns true if the passed in name matches a subFolder.
+func (pg *PictureGroup) HasSubAlbum(name string) bool {
+	_, exists := pg.SubGroups[name]
+	return exists
+}
+
+// HasImage returns true if the passed name matches an image in this folder.
+func (pg *PictureGroup) HasImage(name string) bool {
+	_, exists := pg.Pictures[name]
+	return exists
+}
+
+// GetImage returns the SinglePicture for the <name> file if it exists.
+func (pg *PictureGroup) GetImage(name string) *SinglePicture {
+	key, exists := pg.Pictures[name]
+	if !exists {
+		return nil
+	}
+	return key
+}
+
+// TraversePath returns the path of the current folder relative to the root album.
+func (pg *PictureGroup) TraversePath() string {
+	if pg.Parent == nil {
+		return "/"
+	}
+	// the use of path instead of filepath is intentional, this is an internet path
+	return path.Join(pg.Parent.TraversePath(), pg.FolderName)
+}
+
+// TraverseFileSystemPath returns the path of the current folder relative to the root of file system.
+func (pg *PictureGroup) TraverseFileSystemPath() string {
+	if pg.Parent == nil {
+		absFilePath, err := filepath.Abs(pg.Path)
+		if err == nil {
+			return absFilePath
+		}
+		return "/"
+	}
+	// the use of path instead of filepath is intentional, this is an internet path
+	return path.Join(pg.Parent.TraverseFileSystemPath(), pg.FolderName)
 }
 
 // WriteMetadata will write metadata for this picture group to the passed io.Writer.
@@ -142,6 +188,21 @@ func (pg *PictureGroup) ReadMetadata(metaOrigin io.Reader) error {
 	if err != nil {
 		return errors.Wrap(err, "deserializing picture group from file data")
 	}
+	// reparent de-serialized images
+	for _, v := range pg.Pictures {
+		v.Parent = pg
+	}
+	var newOrder = []string{}
+	for i, v := range pg.SubGroupOrder {
+		fullPath := filepath.Join(pg.TraverseFileSystemPath(), v)
+		_, err := os.Stat(fullPath)
+		if os.IsNotExist(err) {
+			continue
+		}
+		newOrder = append(newOrder, pg.SubGroupOrder[i])
+		pg.AddSubGroup(fullPath, v, false)
+	}
+	pg.SubGroupOrder = newOrder
 	return nil
 }
 
@@ -157,20 +218,29 @@ func (pg *PictureGroup) AddImage(path string) error {
 
 	_, fileName := filepath.Split(path)
 
-	image := &SinglePicture{
-		Path:        path,
-		FileName:    fileName,
-		Title:       "",
-		Description: "",
-		Visible:     true,
-		Existing:    true,
-		Accessible:  accessible,
-	}
-
-	_, exists := pg.Pictures[fileName]
-	pg.Pictures[fileName] = image
+	sp, exists := pg.Pictures[fileName]
 	if !exists {
+		image := &SinglePicture{
+			Parent:      pg,
+			Path:        path,
+			FileName:    fileName,
+			Title:       "",
+			Description: "",
+			Visible:     true,
+			Existing:    true,
+			Accessible:  accessible,
+		}
+		pg.Pictures[fileName] = image
 		pg.Order = append(pg.Order, fileName)
+		sp = image
+	} else {
+		sp.Parent = pg
+	}
+	for _, ts := range pg.AllowedThumbSizes {
+		err = sp.ensureThumbnail(ts.Width, ts.Height)
+		if err != nil {
+			return errors.Wrapf(err, "creathing thumb %d x %d", ts.Width, ts.Height)
+		}
 	}
 	return nil
 }
@@ -337,6 +407,10 @@ func NewPictureGroup(path string, allowedThumbsSizes []*ThumbSize, update, recur
 		return nil, errors.Wrap(err, "reading metadata from meta file")
 	}
 
+	if pg.AllowedThumbSizes == nil {
+		pg.AllowedThumbSizes = allowedThumbsSizes
+	}
+
 	// if update was mandated but we had to create the file there is more to be done here
 	// most likely this is a path into a recursive lookup that was not there before.
 	if update && !created {
@@ -360,11 +434,6 @@ func NewPictureGroup(path string, allowedThumbsSizes []*ThumbSize, update, recur
 		if err != nil {
 			return nil, errors.Wrap(err, "writing up-to-date metadata to file")
 		}
-	}
-
-	// Let us not write this for now as it should be only in the main folder usually.
-	if pg.AllowedThumbSizes == nil {
-		pg.AllowedThumbSizes = allowedThumbsSizes
 	}
 
 	return pg, nil

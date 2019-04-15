@@ -33,30 +33,38 @@ import (
 type FSChild struct {
 	// ParentTree contains a list of folders that are parents to this one, the order
 	// goes from shallow to deep.
-	ParentTree []*RendereablePage
+	ParentTree []RendereablePage
 }
 
 // buildParentTree crawls a PictureGroup until it reaches the top.
 func (f *FSChild) buildParentTree(imageFolder *album.PictureGroup) {
-	parent := imageFolder.Parent
+	f.ParentTree = []RendereablePage{}
+	parent := imageFolder
 	for {
-		if parent.Parent == nil {
+		if parent == nil {
 			break
 		}
 		// not sure if I need this, but I have not slept in many hours
-		var newParent = parent.Parent
-		f.ParentTree = append(f.ParentTree, &RendereablePage{PictureGroup: newParent})
+		var newParent = parent
+		f.ParentTree = append(f.ParentTree, RendereablePage{PictureGroup: *newParent})
 		parent = parent.Parent
 	}
+	rParentTree := make([]RendereablePage, len(f.ParentTree), len(f.ParentTree))
+	for i := range f.ParentTree {
+		rParentTree[len(f.ParentTree)-1-i] = f.ParentTree[i]
+	}
+	f.ParentTree = rParentTree
 }
 
 // RendereablePage wraps an album.PictureGroup into a strcuture that has enough convenience
 // methods to make rendering templates nicer.
 type RendereablePage struct {
-	*album.PictureGroup
-	*FSChild
+	album.PictureGroup
+	FSChild
 	// Siblings holds a list of the other folders in the same folder as this.
 	Siblings []*RendereablePage
+	// Children are folders below this one
+	Children []*RendereablePage
 
 	// Images contains all the rendereable images in this folder
 	Images []*RendereableImage
@@ -73,8 +81,22 @@ func (r *RendereablePage) populateSiblings() {
 	// we will inflate them, but for now as shallow as a b movie villain
 	for i := range r.Parent.SubGroupOrder {
 		r.Siblings = append(r.Siblings, &RendereablePage{
-			PictureGroup: r.Parent.SubGroups[r.Parent.SubGroupOrder[i]],
-			FSChild:      &FSChild{}})
+			PictureGroup: *r.Parent.SubGroups[r.Parent.SubGroupOrder[i]],
+			FSChild:      FSChild{}})
+	}
+}
+
+// populateChildren adds Children to this page
+func (r *RendereablePage) populateChildren(inflate bool) {
+	// I will not populate them that much, if we really find a case for it
+	// we will inflate them, but for now as shallow as a b movie villain
+	for i := range r.SubGroupOrder {
+		child := r.SubGroups[r.SubGroupOrder[i]]
+		if child == nil {
+			continue
+		}
+		page := NewRendereablePage(*child, inflate)
+		r.Children = append(r.Children, page)
 	}
 }
 
@@ -91,9 +113,19 @@ func (r *RendereablePage) populateImages() {
 }
 
 // NewRendereablePage constructs a new RendereablePage with the passed folder
-func NewRendereablePage(folder *album.PictureGroup) *RendereablePage {
-	page := &RendereablePage{PictureGroup: folder, FSChild: &FSChild{}}
-	page.buildParentTree(folder)
-
+func NewRendereablePage(folder album.PictureGroup, inflate bool) *RendereablePage {
+	page := &RendereablePage{
+		PictureGroup: folder,
+		FSChild:      FSChild{},
+		Siblings:     []*RendereablePage{},
+		Children:     []*RendereablePage{},
+		Images:       []*RendereableImage{}}
+	page.buildParentTree(&folder)
+	if inflate {
+		page.populateChildren(false)
+		page.populateImages()
+		page.populateSiblings()
+		page.inflated = true
+	}
 	return page
 }

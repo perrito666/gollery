@@ -26,14 +26,16 @@ SOFTWARE.
 */
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/juju/gnuflag"
 	"github.com/perrito666/gollery/album"
 	"github.com/perrito666/gollery/render"
+	"github.com/perrito666/gollery/server"
+	"github.com/pkg/errors"
 )
 
 type configFields struct {
@@ -84,6 +86,10 @@ func init() {
 
 	config.buildTheme = *buildTheme
 	config.themeFolder = *themePath
+	config.themeFolder, err = filepath.Abs(config.themeFolder)
+	if err != nil {
+		err = errors.Wrap(err, "something is fishy with theme path")
+	}
 }
 
 func main() {
@@ -111,16 +117,17 @@ func main() {
 		}
 	}
 
-	fmt.Printf("%#v\n", config)
+	//fmt.Printf("%#v\n", config) // ye ole print debug, sue me
+	var pictureGroup *album.PictureGroup
+	pictureGroup, err = album.NewPictureGroup(
+		config.albumPath,
+		[]*album.ThumbSize{&album.DefaultThumbSize},
+		false, config.recursive, nil)
+	if err != nil {
+		logger.Fatalf("initializing album: %v", err)
+		return
+	}
 	if config.buildMetadata {
-		_, err = album.NewPictureGroup(
-			config.albumPath,
-			[]*album.ThumbSize{&album.DefaultThumbSize},
-			false, config.recursive, nil)
-		if err != nil {
-			logger.Fatalf("initializing album: %v", err)
-			return
-		}
 		successMsg := fmt.Sprintf("succesfully generated metadata for %q", config.albumPath)
 		if config.recursive {
 			successMsg += " and subfolders"
@@ -133,4 +140,11 @@ func main() {
 	// TODO add traverse where each folder receives a path, removes it's part and passes the rest
 
 	logger.Print("STARTED")
+	srv := &server.AlbumServer{
+		RootFolder: pictureGroup,
+		Port:       8080,
+		ThemePath:  config.themeFolder,
+		Theme:      render.NewTheme("something", config.themeFolder),
+	}
+	srv.Start()
 }

@@ -26,6 +26,8 @@ SOFTWARE.
 */
 
 import (
+	"fmt"
+
 	"github.com/perrito666/gollery/album"
 )
 
@@ -41,9 +43,9 @@ type RendereableImage struct {
 	// rendering and easier done now.
 
 	// Siblings holds a list of the other images in the same folders as this.
-	Siblings []*RendereableImage
+	Siblings []RendereableImage
 	// Children contains the folders that live with this image.
-	Children []*RendereablePage
+	Children []RendereablePage
 
 	previous int
 	next     int
@@ -54,12 +56,18 @@ type RendereableImage struct {
 	inflated bool
 }
 
+// RelativePath returns the path relative to the root album with an extra parameter so we know
+// that this is a request for the file data.
+func (r *RendereableImage) RelativePath() string {
+	return fmt.Sprintf("%s?raw=true", r.SinglePicture.RelativePath())
+}
+
 // First returns the first image in the current folder.
 func (r *RendereableImage) First() *RendereableImage {
 	if len(r.Siblings) == 0 {
 		return nil
 	}
-	return r.Siblings[0]
+	return &r.Siblings[0]
 }
 
 // Previous returns the image before this one in the current folder
@@ -70,7 +78,7 @@ func (r *RendereableImage) Previous() *RendereableImage {
 	if r.previous < 0 {
 		return nil
 	}
-	return r.Siblings[r.previous]
+	return &r.Siblings[r.previous]
 }
 
 // Next returns the image before this one in the current folder.
@@ -81,7 +89,7 @@ func (r *RendereableImage) Next() *RendereableImage {
 	if r.next < 0 {
 		return nil
 	}
-	return r.Siblings[r.next]
+	return &r.Siblings[r.next]
 }
 
 // Last returns the last image in this folder.
@@ -89,7 +97,7 @@ func (r *RendereableImage) Last() *RendereableImage {
 	if len(r.Siblings) == 0 {
 		return nil
 	}
-	return r.Siblings[len(r.Siblings)-1]
+	return &r.Siblings[len(r.Siblings)-1]
 }
 
 // NewRendereableImage returns a struct that can be use to render an image template.
@@ -97,12 +105,17 @@ func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePic
 	img := &RendereableImage{
 		SinglePicture: image,
 		FSChild:       &FSChild{},
-		Siblings:      []*RendereableImage{},
-		Children:      []*RendereablePage{}}
+		Siblings:      []RendereableImage{},
+		Children:      []RendereablePage{}}
 
 	// I am pretty sure this is costing me in garbage collection.
 	for i, k := range imageFolder.Order {
-		img.Siblings = append(img.Siblings, &RendereableImage{SinglePicture: imageFolder.Pictures[k]})
+		img.Siblings = append(img.Siblings, RendereableImage{
+			SinglePicture: imageFolder.Pictures[k],
+			FSChild:       &FSChild{},
+			Siblings:      []RendereableImage{},
+			Children:      []RendereablePage{},
+		})
 		if img.Siblings[i].FileName == img.FileName {
 			img.Siblings[i].Current = true
 			// -1 means no previous
@@ -116,7 +129,12 @@ func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePic
 		img.next = -1
 	}
 	for _, k := range imageFolder.SubGroupOrder {
-		img.Children = append(img.Children, &RendereablePage{PictureGroup: imageFolder.SubGroups[k]})
+		folder := imageFolder.SubGroups[k]
+		if folder == nil {
+			continue
+		}
+		page := NewRendereablePage(*folder, false)
+		img.Children = append(img.Children, *page)
 	}
 	img.buildParentTree(imageFolder)
 
