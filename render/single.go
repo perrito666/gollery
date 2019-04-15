@@ -110,6 +110,9 @@ func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePic
 
 	// I am pretty sure this is costing me in garbage collection.
 	for i, k := range imageFolder.Order {
+		if !imageFolder.Pictures[k].Visible || !imageFolder.Pictures[k].Existing {
+			continue
+		}
 		img.Siblings = append(img.Siblings, RendereableImage{
 			SinglePicture: imageFolder.Pictures[k],
 			FSChild:       &FSChild{},
