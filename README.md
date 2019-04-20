@@ -1,6 +1,10 @@
 # gollery
-An attempt at replacing gallerpy
+### (An attempt at replacing gallerpy)
 
+Gollerpy is a photo gallery server which uses you folder structure to create the album on, it relies on json files (generated for your convenience) for extra metadata you might want to add and even allows you to hide files.
+In simple words is a glorified file server, it uses a theme to render pages of the album and single pages, a barebones theme can be generated for you to extend.
+
+I wrote this because i missed **gallerpy** that did something similar and was discontinued, you might serve this to the public but you will need an http server like nginx, apache or caddy to add https. I use this mainly for internal viewing of my own photos.
 ## Usage
 
 ```
