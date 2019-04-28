@@ -26,6 +26,8 @@ SOFTWARE.
 */
 
 import (
+	"html/template"
+
 	"github.com/perrito666/gollery/album"
 )
 
@@ -72,6 +74,11 @@ type RendereablePage struct {
 	inflated bool
 	// useful marker for navtrees
 	Current bool
+}
+
+// DescriptionRich returns an un-escaped description,use at your own Risk
+func (r RendereablePage) DescriptionRich() template.HTML {
+	return template.HTML(r.Description)
 }
 
 // populateSiblings will load the folders that live next to this one if this is not the top level one
