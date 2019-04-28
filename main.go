@@ -44,6 +44,8 @@ type configFields struct {
 	themeFolder   string
 	recursive     bool
 	albumPath     string
+	bindToHost    string
+	bindToPort    int64
 }
 
 var config = configFields{}
@@ -63,6 +65,8 @@ func init() {
 	buildTheme := gnuflag.CommandLine.String("createtheme", "", "create a theme for the album in the passed path with the passed name")
 	themePath := gnuflag.CommandLine.String("theme", "", "use the passed in folder as a theme (included for creation)")
 	recursive := gnuflag.CommandLine.Bool("recursive", true, "apply any action to the root album and subfolders")
+	bindToPort := gnuflag.CommandLine.Int64("port", 8080, "use this port to serve")
+	bindToHost := gnuflag.CommandLine.String("host", "127.0.0.1", "bind to this host address")
 
 	var err error
 	defer func() {
@@ -90,6 +94,8 @@ func init() {
 	if err != nil {
 		err = errors.Wrap(err, "something is fishy with theme path")
 	}
+	config.bindToHost = *bindToHost
+	config.bindToPort = *bindToPort
 }
 
 func main() {
@@ -142,7 +148,8 @@ func main() {
 	srv := &server.AlbumServer{
 		Logger:     logger,
 		RootFolder: pictureGroup,
-		Port:       8080,
+		Port:       config.bindToPort,
+		Host:       config.bindToHost,
 		ThemePath:  config.themeFolder,
 		Theme:      render.NewTheme("something", config.themeFolder),
 	}

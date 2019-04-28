@@ -72,7 +72,8 @@ func isThumbRequest(fileNameAndWidth string) (string, int, int, bool) {
 // AlbumServer holds the necessary data to serve a given album.
 type AlbumServer struct {
 	RootFolder *album.PictureGroup
-	Port       int
+	Port       int64
+	Host       string
 	ThemePath  string
 	Theme      *render.Theme
 	Logger     *log.Logger
@@ -223,5 +224,5 @@ func (a *AlbumServer) Start() {
 	imgServer := themedFileServer(http.FileServer(http.Dir(path.Join(a.ThemePath, "img"))))
 	http.Handle("/img/", http.StripPrefix("/img", imgServer))
 	http.HandleFunc("/", a.handler)
-	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", a.Host, a.Port), nil))
 }

@@ -110,6 +110,10 @@ func (r *RendereablePage) populateImages() {
 		return
 	}
 	for _, k := range r.Order {
+		if _, ok := r.Pictures[k]; !ok {
+			continue
+			// Missing image
+		}
 		if r.Pictures[k].Visible && r.Pictures[k].Existing {
 			r.Images = append(r.Images, &RendereableImage{
 				SinglePicture: r.Pictures[k],
