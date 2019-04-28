@@ -70,6 +70,8 @@ type RendereablePage struct {
 	Images []*RendereableImage
 	// inflated indicates if this has been properly constructed or is just a bare minimum
 	inflated bool
+	// useful marker for navtrees
+	Current bool
 }
 
 // populateSiblings will load the folders that live next to this one if this is not the top level one
@@ -80,7 +82,9 @@ func (r *RendereablePage) populateSiblings() {
 	// I will not populate them that much, if we really find a case for it
 	// we will inflate them, but for now as shallow as a b movie villain
 	for i := range r.Parent.SubGroupOrder {
+		current := r.Parent.SubGroupOrder[i] == r.FolderName
 		r.Siblings = append(r.Siblings, &RendereablePage{
+			Current:      current,
 			PictureGroup: *r.Parent.SubGroups[r.Parent.SubGroupOrder[i]],
 			FSChild:      FSChild{}})
 	}

@@ -223,5 +223,5 @@ func (a *AlbumServer) Start() {
 	imgServer := themedFileServer(http.FileServer(http.Dir(path.Join(a.ThemePath, "img"))))
 	http.Handle("/img/", http.StripPrefix("/img", imgServer))
 	http.HandleFunc("/", a.handler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
 }

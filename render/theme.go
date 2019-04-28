@@ -187,7 +187,10 @@ func (t *Theme) maybeLoadSingleTemplate() error {
 	}
 	filePath := filepath.Join(t.Path, templateFolderName, singleTemplateFileName)
 	var err error
-	t.singlePageTemplate, err = template.New(singleTemplateFileName).ParseFiles(filePath)
+	t.singlePageTemplate, err = template.New(singleTemplateFileName).Funcs(template.FuncMap{
+		"LastItem": func(i, size int) bool { return i == size-1 },
+	}).
+		ParseFiles(filePath)
 	if err != nil {
 		return errors.Wrapf(err, "loading %q template for single images", filePath)
 	}
@@ -199,7 +202,10 @@ func (t *Theme) maybeLoadPageTemplate() error {
 	}
 	filePath := filepath.Join(t.Path, templateFolderName, groupTemplateFileName)
 	var err error
-	t.folderTemplate, err = template.New(groupTemplateFileName).ParseFiles(filePath)
+	t.folderTemplate, err = template.New(groupTemplateFileName).Funcs(template.FuncMap{
+		"LastItem": func(i, size int) bool { return i == size-1 },
+	}).
+		ParseFiles(filePath)
 	if err != nil {
 		return errors.Wrapf(err, "loading %q template for folders", filePath)
 	}

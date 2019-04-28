@@ -82,8 +82,8 @@ type ThumbSize struct {
 // the number is super retro and it was picked arbitrarily beacause it's the only
 // number I can think out of the top of my head on a plane.
 var DefaultThumbSize = ThumbSize{
-	Width:  640,
-	Height: 480,
+	Width:  320,
+	Height: 213,
 }
 
 // PictureGroup holds information about a group of pictures from an album
