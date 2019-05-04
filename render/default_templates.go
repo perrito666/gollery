@@ -35,9 +35,20 @@ var singleImageDefaultTemplate = []byte(`<html>
     <meta property="og:type" content="website" />
     <meta property="og:description" content="{{if .Description}}{{.Description}}{{end}}" />
     {{if .Metadata.baseURL}}
-    {{/* if you want this, create a json file with a dict containing baseURL and pass it to --extrameta */}}
+    {{/* if you want this, create a json file with a dict containing baseURL and pass it to --extrametafile */}}
     <meta property="og:url" content="{{.Metadata.baseURL}}{{.RelativePath}}" />
     <meta property="og:image" content="{{.Metadata.baseURL}}{{.ThumbName 320 213}}" />
+    {{end}}
+    {{if .Metadata.gtag}}
+    {{/* if you want this, create a json file with a dict containing gtag and pass it to --extrametafile */}}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{.Metadata.gtag}}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', '{{.Metadata.gtag}}');
+    </script>
     {{end}}
 </head>
 </body>
@@ -96,6 +107,17 @@ var groupDefaultTemplate = []byte(`<html>
     <meta property="og:description" content="{{if .Description}}{{.Description}}{{end}}" />
     {{if .Metadata.baseURL}}
     <meta property="og:url" content="{{.Metadata.baseURL}}{{.RelativePath}}" />
+    {{end}}
+    {{if .Metadata.gtag}}
+    {{/* if you want this, create a json file with a dict containing gtag and pass it to --extrametafile */}}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{.Metadata.gtag}}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', '{{.Metadata.gtag}}');
+    </script>
     {{end}}
 </head>
 <body>
