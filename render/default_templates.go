@@ -30,6 +30,15 @@ var singleImageDefaultTemplate = []byte(`<html>
 <head>
     <title>{{if .Title}} {{.Title}} {{else}} {{.FileName}} {{end}}</title>
     <meta name="description" content="{{.Description}}">
+
+    <meta property="og:title" content="{{if .Title}}{{.Title}}{{else}}{{.FileName}}{{end}}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="{{if .Description}}{{.Description}}{{end}}" />
+    {{if .Metadata.baseURL}}
+    {{/* if you want this, create a json file with a dict containing baseURL and pass it to --extrameta */}}
+    <meta property="og:url" content="{{.Metadata.baseURL}}{{.RelativePath}}" />
+    <meta property="og:image" content="{{.Metadata.baseURL}}{{.ThumbName 320 213}}" />
+    {{end}}
 </head>
 </body>
 <nav class="breadcrumb">
@@ -81,6 +90,13 @@ var groupDefaultTemplate = []byte(`<html>
 <head>
     <title>{{if .Title}} {{.Title}} {{else}} {{.FolderName}} {{end}}</title>
     <meta name="description" content="{{.Description}}">
+
+    <meta property="og:title" content="{{if .Title}}{{.Title}}{{else}}{{.FolderName}}{{end}}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="{{if .Description}}{{.Description}}{{end}}" />
+    {{if .Metadata.baseURL}}
+    <meta property="og:url" content="{{.Metadata.baseURL}}{{.RelativePath}}" />
+    {{end}}
 </head>
 <body>
 <nav class="breadcrumb">
