@@ -49,9 +49,9 @@ type SinglePicture struct {
 	// FileName holds the name for this picture's file.
 	FileName string `json:"file-name"`
 	// Title is a given title for this picture.
-	Title string `json:"title,omitempty"`
+	Title string `json:"title"`
 	// Description is a description of this picture.
-	Description string `json:"description,omitempty"`
+	Description string `json:"description"`
 	// Visible indicates if this picture is displayed.
 	Visible bool `json:"visible"`
 	// Existing indicates wether the file we represent is present on disk.

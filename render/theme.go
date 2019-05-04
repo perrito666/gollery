@@ -213,12 +213,12 @@ func (t *Theme) maybeLoadPageTemplate() error {
 }
 
 // RenderPicture render the passed picture page into the passed io.Writer
-func (t *Theme) RenderPicture(folder *album.PictureGroup, img *album.SinglePicture, destination io.Writer) error {
+func (t *Theme) RenderPicture(folder *album.PictureGroup, img *album.SinglePicture, destination io.Writer, meta map[string]string) error {
 	err := t.maybeLoadSingleTemplate()
 	if err != nil {
 		return errors.Wrap(err, "loading template to render single image")
 	}
-	picture := NewRendereableImage(folder, img)
+	picture := NewRendereableImage(folder, img, meta)
 	err = t.singlePageTemplate.Execute(destination, picture)
 	if err != nil {
 		return errors.Wrap(err, "rendering image template")
@@ -227,12 +227,12 @@ func (t *Theme) RenderPicture(folder *album.PictureGroup, img *album.SinglePictu
 }
 
 // RenderFolder renders the passed folder into the passed io.Writer
-func (t *Theme) RenderFolder(folder *album.PictureGroup, destination io.Writer) error {
+func (t *Theme) RenderFolder(folder *album.PictureGroup, destination io.Writer, meta map[string]string) error {
 	err := t.maybeLoadPageTemplate()
 	if err != nil {
 		return errors.Wrap(err, "loading template to render folder")
 	}
-	albumFolder := NewRendereablePage(*folder, true)
+	albumFolder := NewRendereablePage(*folder, true, meta)
 	err = t.folderTemplate.Execute(destination, *albumFolder)
 	if err != nil {
 		return errors.Wrap(err, "rendering folder template")

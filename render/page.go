@@ -36,6 +36,9 @@ type FSChild struct {
 	// ParentTree contains a list of folders that are parents to this one, the order
 	// goes from shallow to deep.
 	ParentTree []RendereablePage
+	// Metadata contains all the data we might want to pass to the site
+	// it comes from command line.
+	Metadata map[string]string
 }
 
 // buildParentTree crawls a PictureGroup until it reaches the top.
@@ -106,7 +109,7 @@ func (r *RendereablePage) populateChildren(inflate bool) {
 		if child == nil {
 			continue
 		}
-		page := NewRendereablePage(*child, inflate)
+		page := NewRendereablePage(*child, inflate, r.Metadata)
 		r.Children = append(r.Children, page)
 	}
 }
@@ -130,13 +133,15 @@ func (r *RendereablePage) populateImages() {
 }
 
 // NewRendereablePage constructs a new RendereablePage with the passed folder
-func NewRendereablePage(folder album.PictureGroup, inflate bool) *RendereablePage {
+func NewRendereablePage(folder album.PictureGroup, inflate bool, meta map[string]string) *RendereablePage {
 	page := &RendereablePage{
 		PictureGroup: folder,
-		FSChild:      FSChild{},
-		Siblings:     []*RendereablePage{},
-		Children:     []*RendereablePage{},
-		Images:       []*RendereableImage{}}
+		FSChild: FSChild{
+			Metadata: meta,
+		},
+		Siblings: []*RendereablePage{},
+		Children: []*RendereablePage{},
+		Images:   []*RendereableImage{}}
 	page.buildParentTree(&folder)
 	if inflate {
 		page.populateChildren(false)

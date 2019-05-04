@@ -26,7 +26,9 @@ SOFTWARE.
 */
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -46,6 +48,7 @@ type configFields struct {
 	albumPath     string
 	bindToHost    string
 	bindToPort    int64
+	metadata      map[string]string
 }
 
 var config = configFields{}
@@ -67,10 +70,12 @@ func init() {
 	recursive := gnuflag.CommandLine.Bool("recursive", true, "apply any action to the root album and subfolders")
 	bindToPort := gnuflag.CommandLine.Int64("port", 8080, "use this port to serve")
 	bindToHost := gnuflag.CommandLine.String("host", "127.0.0.1", "bind to this host address")
+	metaData := gnuflag.CommandLine.String("extrametafile", "", "a json file containing key/values for extra metadata that one wants available in templates")
 
 	var err error
 	defer func() {
 		if err != nil {
+			fmt.Println(fmt.Sprintf("Failures encountered: %v\n\n", err))
 			gnuflag.CommandLine.Usage()
 			os.Exit(1)
 		}
@@ -96,6 +101,27 @@ func init() {
 	}
 	config.bindToHost = *bindToHost
 	config.bindToPort = *bindToPort
+
+	config.metadata = map[string]string{}
+	if *metaData != "" {
+		f, err := os.OpenFile(*metaData, os.O_RDONLY, 0655)
+		if err != nil {
+			err = errors.Wrap(err, "opening extra meta file")
+			return
+		}
+		defer f.Close()
+		data, err := ioutil.ReadAll(f)
+		if err != nil {
+			err = errors.Wrap(err, "loading extra metadata from file")
+			return
+		}
+		if len(data) == 0 {
+			return
+		}
+		if err = json.Unmarshal(data, &config.metadata); err != nil {
+			err = errors.Wrap(err, "parsing extra metadata from file")
+		}
+	}
 }
 
 func main() {
@@ -127,7 +153,7 @@ func main() {
 	pictureGroup, err = album.NewPictureGroup(logger,
 		config.albumPath,
 		[]*album.ThumbSize{&album.DefaultThumbSize},
-		false, config.recursive, nil)
+		config.buildMetadata, config.recursive, nil)
 	if err != nil {
 		logger.Fatalf("initializing album: %v", err)
 		return
@@ -152,6 +178,7 @@ func main() {
 		Host:       config.bindToHost,
 		ThemePath:  config.themeFolder,
 		Theme:      render.NewTheme("something", config.themeFolder),
+		Metadata:   config.metadata,
 	}
 	srv.Start()
 }

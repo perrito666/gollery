@@ -100,7 +100,7 @@ type PictureGroup struct {
 	// Title is a title representing this picture group/folder/album.
 	Title string `json:"title"`
 	// Description is a description of this folder.
-	Description string `json:"description,omitempty"`
+	Description string `json:"description"`
 	// Pictures holds a map of references to all the pictures in this album.
 	Pictures map[string]*SinglePicture `json:"pictures"`
 	// Order contains a list of strings ordered in the way the items in this album
@@ -116,7 +116,7 @@ type PictureGroup struct {
 	// AllowedThumbSizes holds all the allowed thumbnail sizes for this and children groups
 	// it will override parent sizes and be inherited by children that do not specify them, if
 	// none is defined it will default to one sane size.
-	AllowedThumbSizes []*ThumbSize `json:"allowed-thumb-sizes,omitempty"`
+	AllowedThumbSizes []*ThumbSize `json:"allowed-thumb-sizes"`
 	// Logger holds a logger
 	Logger *log.Logger `json:"-"`
 }
@@ -261,6 +261,11 @@ func (pg *PictureGroup) AddSubGroup(fullPath, folderName string, recursive bool)
 	}
 
 	pg.SubGroups[newPg.FolderName] = newPg
+	for _, v := range pg.SubGroupOrder {
+		if newPg.FolderName == v {
+			return nil
+		}
+	}
 	pg.SubGroupOrder = append(pg.SubGroupOrder, newPg.FolderName)
 	return nil
 }

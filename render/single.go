@@ -101,12 +101,14 @@ func (r *RendereableImage) Last() *RendereableImage {
 }
 
 // NewRendereableImage returns a struct that can be use to render an image template.
-func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePicture) *RendereableImage {
+func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePicture, meta map[string]string) *RendereableImage {
 	img := &RendereableImage{
 		SinglePicture: image,
-		FSChild:       &FSChild{},
-		Siblings:      []RendereableImage{},
-		Children:      []RendereablePage{}}
+		FSChild: &FSChild{
+			Metadata: meta,
+		},
+		Siblings: []RendereableImage{},
+		Children: []RendereablePage{}}
 
 	// I am pretty sure this is costing me in garbage collection.
 	for i, k := range imageFolder.Order {
@@ -115,9 +117,11 @@ func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePic
 		}
 		img.Siblings = append(img.Siblings, RendereableImage{
 			SinglePicture: imageFolder.Pictures[k],
-			FSChild:       &FSChild{},
-			Siblings:      []RendereableImage{},
-			Children:      []RendereablePage{},
+			FSChild: &FSChild{
+				Metadata: meta,
+			},
+			Siblings: []RendereableImage{},
+			Children: []RendereablePage{},
 		})
 		if img.Siblings[i].FileName == img.FileName {
 			img.Siblings[i].Current = true
@@ -136,7 +140,7 @@ func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePic
 		if folder == nil {
 			continue
 		}
-		page := NewRendereablePage(*folder, false)
+		page := NewRendereablePage(*folder, false, meta)
 		img.Children = append(img.Children, *page)
 	}
 	img.buildParentTree(imageFolder)

@@ -77,13 +77,14 @@ type AlbumServer struct {
 	ThemePath  string
 	Theme      *render.Theme
 	Logger     *log.Logger
+	Metadata   map[string]string
 }
 
-func serveFolder(w http.ResponseWriter, r *http.Request, folder *album.PictureGroup, theme *render.Theme) {
+func serveFolder(w http.ResponseWriter, r *http.Request, folder *album.PictureGroup, theme *render.Theme, meta map[string]string) {
 	w.Header().Set("Content-Type", "text/html")
 	var b []byte
 	buf := bytes.NewBuffer(b)
-	err := theme.RenderFolder(folder, buf)
+	err := theme.RenderFolder(folder, buf, meta)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf("500 boom %v", err)))
@@ -95,7 +96,7 @@ func serveFolder(w http.ResponseWriter, r *http.Request, folder *album.PictureGr
 func (a *AlbumServer) handler(w http.ResponseWriter, r *http.Request) {
 	folder := a.RootFolder
 	if r.URL.Path == "/" {
-		serveFolder(w, r, folder, a.Theme)
+		serveFolder(w, r, folder, a.Theme, a.Metadata)
 		return
 	}
 	// TODO traverse path for folders so we know what to do when ends with /
@@ -105,7 +106,7 @@ func (a *AlbumServer) handler(w http.ResponseWriter, r *http.Request) {
 		if folder.HasSubAlbum(component) {
 			folder = folder.SubGroups[component]
 			if i == len(pathComponents)-1 {
-				serveFolder(w, r, folder, a.Theme)
+				serveFolder(w, r, folder, a.Theme, a.Metadata)
 				return
 			}
 			continue
@@ -122,7 +123,7 @@ func (a *AlbumServer) handler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			var b []byte
 			buf := bytes.NewBuffer(b)
-			err := a.Theme.RenderPicture(folder, folder.Pictures[component], buf)
+			err := a.Theme.RenderPicture(folder, folder.Pictures[component], buf, a.Metadata)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				a.Logger.Printf("ERROR: %v", err)
