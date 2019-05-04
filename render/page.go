@@ -100,6 +100,11 @@ func (r *RendereablePage) populateSiblings() {
 	}
 }
 
+// TraversePath just passes through the underlying picture group traverse path for template
+func (r RendereablePage) TraversePath() string {
+	return r.PictureGroup.TraversePath()
+}
+
 // populateChildren adds Children to this page
 func (r *RendereablePage) populateChildren(inflate bool) {
 	// I will not populate them that much, if we really find a case for it
