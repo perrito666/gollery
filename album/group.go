@@ -213,7 +213,6 @@ func (pg *PictureGroup) ReadMetadata(metaOrigin io.Reader) error {
 // AddImage constructs the SingleImage for this path and then adds it to the corresponding
 // references of this group.
 func (pg *PictureGroup) AddImage(path string) error {
-	pg.Logger.Printf("considering file: %s\n", path)
 	var accessible = true
 
 	_, err := os.Stat(path)
