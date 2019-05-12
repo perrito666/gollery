@@ -175,6 +175,7 @@ func (pg *PictureGroup) WriteMetadata(metaDestination io.Writer) error {
 	if err != nil {
 		return errors.Wrap(err, "writing serialized picture group to file")
 	}
+	pg.Logger.Printf("will write metadata:\n%s", string(serializedPG))
 	return nil
 }
 
@@ -203,7 +204,7 @@ func (pg *PictureGroup) ReadMetadata(metaOrigin io.Reader) error {
 			continue
 		}
 		newOrder = append(newOrder, pg.SubGroupOrder[i])
-		pg.AddSubGroup(fullPath, v, false)
+		pg.AddSubGroup(fullPath, v, false, false)
 	}
 	pg.SubGroupOrder = newOrder
 	return nil
@@ -212,6 +213,7 @@ func (pg *PictureGroup) ReadMetadata(metaOrigin io.Reader) error {
 // AddImage constructs the SingleImage for this path and then adds it to the corresponding
 // references of this group.
 func (pg *PictureGroup) AddImage(path string) error {
+	pg.Logger.Printf("considering file: %s\n", path)
 	var accessible = true
 
 	_, err := os.Stat(path)
@@ -249,8 +251,8 @@ func (pg *PictureGroup) AddImage(path string) error {
 }
 
 // AddSubGroup construct a SubGroup that lives under this one
-func (pg *PictureGroup) AddSubGroup(fullPath, folderName string, recursive bool) error {
-	newPg, err := NewPictureGroup(pg.Logger, fullPath, pg.AllowedThumbSizes, false, recursive, pg)
+func (pg *PictureGroup) AddSubGroup(fullPath, folderName string, recursive, update bool) error {
+	newPg, err := NewPictureGroup(pg.Logger, fullPath, pg.AllowedThumbSizes, update, recursive, pg)
 	if err != nil {
 		return errors.Wrap(err, "constructing sub picture group")
 	}
@@ -284,7 +286,7 @@ func (pg *PictureGroup) ConstructMetadata(recursive bool) error {
 				return nil
 			}
 			_, dName := filepath.Split(path)
-			err = pg.AddSubGroup(path, dName, recursive)
+			err = pg.AddSubGroup(path, dName, recursive, false)
 			if err != nil {
 				return errors.Wrapf(err, "processing folder %q", path)
 			}
@@ -325,7 +327,7 @@ func (pg *PictureGroup) NonDestructiveUpdateMetadata(recursive bool) error {
 				return nil
 			}
 			_, dName := filepath.Split(path)
-			err = pg.AddSubGroup(path, dName, recursive)
+			err = pg.AddSubGroup(path, dName, recursive, true)
 			if err != nil {
 				return errors.Wrapf(err, "processing folder %q", path)
 			}
@@ -368,6 +370,8 @@ type metaFileAccessor interface {
 	io.Reader
 	io.Seeker
 	io.Closer
+	Sync() error
+	Truncate(int64) error
 }
 
 // ensureMetaFile opens and optionally creates a metadata file and returns a reference to it along
@@ -437,11 +441,20 @@ func NewPictureGroup(logger *log.Logger, path string, allowedThumbsSizes []*Thum
 	}
 
 	if created || update {
+		logger.Printf("writing metadata to %s\n", metaFilePath)
 		// We will write to this file again so we rewind it.
 		metaDataFile.Seek(0, io.SeekStart)
+		err = metaDataFile.Truncate(0)
+		if err != nil {
+			return nil, errors.Wrap(err, "truncating to rewrite conf")
+		}
 		err = pg.WriteMetadata(metaDataFile)
 		if err != nil {
 			return nil, errors.Wrap(err, "writing up-to-date metadata to file")
+		}
+		err = metaDataFile.Sync()
+		if err != nil {
+			return nil, errors.Wrap(err, "syncing after writing conf")
 		}
 	}
 
