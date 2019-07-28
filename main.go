@@ -139,15 +139,15 @@ func main() {
 	}()
 	switch config.logLevel {
 	case "error":
-		logger.SetLevel(LvlError)
+		logger.SetLevel(logs.LvlError)
 	case "warn", "warning":
-		logger.SetLevel(LvlWarning)
+		logger.SetLevel(logs.LvlWarning)
 	case "info":
-		logger.SetLevel(LvlInfo)
+		logger.SetLevel(logs.LvlInfo)
 	case "debug":
-		logger.SetLevel(LvlDebug)
+		logger.SetLevel(logs.LvlDebug)
 	case "trace":
-		logger.SetLevel(LvlTrace)
+		logger.SetLevel(logs.LvlTrace)
 	}
 
 	var currentTheme *render.Theme
