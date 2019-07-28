@@ -213,7 +213,7 @@ func (t *Theme) maybeLoadPageTemplate() error {
 }
 
 // RenderPicture render the passed picture page into the passed io.Writer
-func (t *Theme) RenderPicture(folder *album.PictureGroup, img *album.SinglePicture, destination io.Writer, meta map[string]string) error {
+func (t *Theme) RenderPicture(folder *album.PictureFolder, img *album.Picture, destination io.Writer, meta map[string]string) error {
 	err := t.maybeLoadSingleTemplate()
 	if err != nil {
 		return errors.Wrap(err, "loading template to render single image")
@@ -227,7 +227,7 @@ func (t *Theme) RenderPicture(folder *album.PictureGroup, img *album.SinglePictu
 }
 
 // RenderFolder renders the passed folder into the passed io.Writer
-func (t *Theme) RenderFolder(folder *album.PictureGroup, destination io.Writer, meta map[string]string) error {
+func (t *Theme) RenderFolder(folder *album.PictureFolder, destination io.Writer, meta map[string]string) error {
 	err := t.maybeLoadPageTemplate()
 	if err != nil {
 		return errors.Wrap(err, "loading template to render folder")

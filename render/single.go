@@ -35,7 +35,7 @@ import (
 // to ease converting it into a page.
 type RendereableImage struct {
 	// I am pretty sure I am buying a headache in the near future here.
-	*album.SinglePicture
+	*album.Picture
 	*FSChild
 
 	// The only reason that the following fields are rendereables instead of the base types
@@ -59,7 +59,7 @@ type RendereableImage struct {
 // RelativePath returns the path relative to the root album with an extra parameter so we know
 // that this is a request for the file data.
 func (r *RendereableImage) RelativePath() string {
-	return fmt.Sprintf("%s?raw=true", r.SinglePicture.RelativePath())
+	return fmt.Sprintf("%s?raw=true", r.Picture.RelativePath())
 }
 
 // First returns the first image in the current folder.
@@ -101,9 +101,9 @@ func (r *RendereableImage) Last() *RendereableImage {
 }
 
 // NewRendereableImage returns a struct that can be use to render an image template.
-func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePicture, meta map[string]string) *RendereableImage {
+func NewRendereableImage(imageFolder *album.PictureFolder, image *album.Picture, meta map[string]string) *RendereableImage {
 	img := &RendereableImage{
-		SinglePicture: image,
+		Picture: image,
 		FSChild: &FSChild{
 			Metadata: meta,
 		},
@@ -116,7 +116,7 @@ func NewRendereableImage(imageFolder *album.PictureGroup, image *album.SinglePic
 			continue
 		}
 		img.Siblings = append(img.Siblings, RendereableImage{
-			SinglePicture: imageFolder.Pictures[k],
+			Picture: imageFolder.Pictures[k],
 			FSChild: &FSChild{
 				Metadata: meta,
 			},

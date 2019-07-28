@@ -36,13 +36,14 @@ type FSChild struct {
 	// ParentTree contains a list of folders that are parents to this one, the order
 	// goes from shallow to deep.
 	ParentTree []RendereablePage
+
 	// Metadata contains all the data we might want to pass to the site
 	// it comes from command line.
 	Metadata map[string]string
 }
 
 // buildParentTree crawls a PictureGroup until it reaches the top.
-func (f *FSChild) buildParentTree(imageFolder *album.PictureGroup) {
+func (f *FSChild) buildParentTree(imageFolder *album.PictureFolder) {
 	f.ParentTree = []RendereablePage{}
 	parent := imageFolder
 	for {
@@ -51,7 +52,7 @@ func (f *FSChild) buildParentTree(imageFolder *album.PictureGroup) {
 		}
 		// not sure if I need this, but I have not slept in many hours
 		var newParent = parent
-		f.ParentTree = append(f.ParentTree, RendereablePage{PictureGroup: *newParent})
+		f.ParentTree = append(f.ParentTree, RendereablePage{PictureFolder: *newParent})
 		parent = parent.Parent
 	}
 	rParentTree := make([]RendereablePage, len(f.ParentTree), len(f.ParentTree))
@@ -64,7 +65,7 @@ func (f *FSChild) buildParentTree(imageFolder *album.PictureGroup) {
 // RendereablePage wraps an album.PictureGroup into a strcuture that has enough convenience
 // methods to make rendering templates nicer.
 type RendereablePage struct {
-	album.PictureGroup
+	album.PictureFolder
 	FSChild
 	// Siblings holds a list of the other folders in the same folder as this.
 	Siblings []*RendereablePage
@@ -94,15 +95,15 @@ func (r *RendereablePage) populateSiblings() {
 	for i := range r.Parent.SubGroupOrder {
 		current := r.Parent.SubGroupOrder[i] == r.FolderName
 		r.Siblings = append(r.Siblings, &RendereablePage{
-			Current:      current,
-			PictureGroup: *r.Parent.SubGroups[r.Parent.SubGroupOrder[i]],
-			FSChild:      FSChild{}})
+			Current:       current,
+			PictureFolder: *r.Parent.SubGroups[r.Parent.SubGroupOrder[i]],
+			FSChild:       FSChild{}})
 	}
 }
 
 // TraversePath just passes through the underlying picture group traverse path for template
 func (r RendereablePage) TraversePath() string {
-	return r.PictureGroup.TraversePath()
+	return r.PictureFolder.TraversePath()
 }
 
 // populateChildren adds Children to this page
@@ -131,16 +132,16 @@ func (r *RendereablePage) populateImages() {
 		}
 		if r.Pictures[k].Visible && r.Pictures[k].Existing {
 			r.Images = append(r.Images, &RendereableImage{
-				SinglePicture: r.Pictures[k],
-				FSChild:       &FSChild{}})
+				Picture: r.Pictures[k],
+				FSChild: &FSChild{}})
 		}
 	}
 }
 
 // NewRendereablePage constructs a new RendereablePage with the passed folder
-func NewRendereablePage(folder album.PictureGroup, inflate bool, meta map[string]string) *RendereablePage {
+func NewRendereablePage(folder album.PictureFolder, inflate bool, meta map[string]string) *RendereablePage {
 	page := &RendereablePage{
-		PictureGroup: folder,
+		PictureFolder: folder,
 		FSChild: FSChild{
 			Metadata: meta,
 		},

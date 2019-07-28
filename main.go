@@ -29,12 +29,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/juju/gnuflag"
 	"github.com/perrito666/gollery/album"
+	"github.com/perrito666/gollery/logs"
 	"github.com/perrito666/gollery/render"
 	"github.com/perrito666/gollery/server"
 	"github.com/pkg/errors"
@@ -48,6 +48,7 @@ type configFields struct {
 	albumPath     string
 	bindToHost    string
 	bindToPort    int64
+	logLevel      string
 	metadata      map[string]string
 }
 
@@ -71,6 +72,7 @@ func init() {
 	bindToPort := gnuflag.CommandLine.Int64("port", 8080, "use this port to serve")
 	bindToHost := gnuflag.CommandLine.String("host", "127.0.0.1", "bind to this host address")
 	metaData := gnuflag.CommandLine.String("extrametafile", "", "a json file containing key/values for extra metadata that one wants available in templates")
+	logLevel := gnuflag.CommandLine.String("loglevel", "info", "the level of logging")
 
 	var err error
 	defer func() {
@@ -122,58 +124,68 @@ func init() {
 			err = errors.Wrap(err, "parsing extra metadata from file")
 		}
 	}
+	config.logLevel = *logLevel
 }
 
 func main() {
 	// TODO: make some reload for server when files change
-	logger := log.New(os.Stdout, "GOLLERY: ", log.Ldate|log.Ltime|log.Lshortfile)
+	logger := logs.New("GOLLERY")
 	var err error
 	defer func() {
 		if err != nil {
-			logger.Printf("found error while running: %v", err)
+			logger.Errorf("found error while running: %v", err)
 			os.Exit(1)
 		}
 	}()
+	switch config.logLevel {
+	case "error":
+		logger.SetLevel(LvlError)
+	case "warn", "warning":
+		logger.SetLevel(LvlWarning)
+	case "info":
+		logger.SetLevel(LvlInfo)
+	case "debug":
+		logger.SetLevel(LvlDebug)
+	case "trace":
+		logger.SetLevel(LvlTrace)
+	}
 
 	var currentTheme *render.Theme
 	if config.buildTheme != "" {
 		if config.themeFolder == "" {
-			logger.Fatal("cannot create a template without a template path")
-			return
+			logger.Errorf("cannot create a template without a template path")
+			os.Exit(1)
 		}
 		currentTheme = render.NewTheme(config.buildTheme, config.themeFolder)
 		err = currentTheme.Create()
 		if err != nil {
-			logger.Fatalf("initializing theme: %v", err)
-			return
+			logger.Errorf("initializing theme: %v", err)
+			os.Exit(1)
 		}
 	}
 
-	var pictureGroup *album.PictureGroup
-	pictureGroup, err = album.NewPictureGroup(logger,
+	var pictureFolder *album.PictureFolder
+	pictureFolder, err = album.NewPictureGroup(logger,
 		config.albumPath,
 		[]*album.ThumbSize{&album.DefaultThumbSize},
 		config.buildMetadata, config.recursive, nil)
 	if err != nil {
-		logger.Fatalf("initializing album: %v", err)
-		return
+		logger.Errorf("initializing album: %v", err)
+		os.Exit(1)
 	}
 	if config.buildMetadata {
 		successMsg := fmt.Sprintf("succesfully generated metadata for %q", config.albumPath)
 		if config.recursive {
 			successMsg += " and subfolders"
 		}
-		logger.Printf(successMsg)
+		logger.Infof(successMsg)
 		return
 	}
 
-	// TODO Serve
-	// TODO add traverse where each folder receives a path, removes it's part and passes the rest
-
-	logger.Print("STARTED")
+	logger.Info("STARTED")
 	srv := &server.AlbumServer{
 		Logger:     logger,
-		RootFolder: pictureGroup,
+		RootFolder: pictureFolder,
 		Port:       config.bindToPort,
 		Host:       config.bindToHost,
 		ThemePath:  config.themeFolder,

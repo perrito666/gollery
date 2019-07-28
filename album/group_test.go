@@ -33,6 +33,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/perrito666/gollery/logs"
 	"github.com/pkg/errors"
 )
 
@@ -74,16 +75,16 @@ func tempDir(baseDir string, recurse bool) (string, func(), error) {
 func TestPictureGroup_ConstructMetadata(t *testing.T) {
 	tests := []struct {
 		name      string
-		pg        *PictureGroup
+		pg        *PictureFolder
 		recursive bool
 		wantErr   bool
 	}{
 		{
 			name: "picture group construct non recursive",
-			pg: &PictureGroup{
-				Pictures:      make(map[string]*SinglePicture),
+			pg: &PictureFolder{
+				Pictures:      make(map[string]*Picture),
 				Order:         []string{},
-				SubGroups:     map[string]*PictureGroup{},
+				SubGroups:     map[string]*PictureFolder{},
 				SubGroupOrder: []string{},
 			},
 			recursive: false,
@@ -91,10 +92,10 @@ func TestPictureGroup_ConstructMetadata(t *testing.T) {
 		},
 		{
 			name: "picture group construct recursive",
-			pg: &PictureGroup{
-				Pictures:      make(map[string]*SinglePicture),
+			pg: &PictureFolder{
+				Pictures:      make(map[string]*Picture),
 				Order:         []string{},
-				SubGroups:     map[string]*PictureGroup{},
+				SubGroups:     map[string]*PictureFolder{},
 				SubGroupOrder: []string{},
 			},
 			recursive: true,
@@ -159,7 +160,7 @@ func TestNewPictureGroup(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *PictureGroup
+		want    *PictureFolder
 		wantErr bool
 	}{
 		{name: "New PG on fresh folder",
@@ -171,6 +172,7 @@ func TestNewPictureGroup(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	logger := logs.New("GOLLERYTEST")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dirPath, cleaner, err := tempDir("", true)
@@ -180,7 +182,7 @@ func TestNewPictureGroup(t *testing.T) {
 			}
 			defer cleaner()
 			tt.args.path = dirPath
-			got, err := NewPictureGroup(tt.args.path, []*ThumbSize{&DefaultThumbSize}, tt.args.update, tt.args.recursive, nil)
+			got, err := NewPictureGroup(logger, tt.args.path, []*ThumbSize{&DefaultThumbSize}, tt.args.update, tt.args.recursive, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewPictureGroup() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -215,7 +217,7 @@ func TestNewPictureGroup(t *testing.T) {
 }
 
 func TestPictureGroup_NonDestructiveUpdateMetadata(t *testing.T) {
-
+	logger := logs.New("GOLLERYTEST")
 	t.Run("Updates Metadata when added and deleted files", func(t *testing.T) {
 		dirPath, cleaner, err := tempDir("", true)
 		if err != nil {
@@ -223,7 +225,7 @@ func TestPictureGroup_NonDestructiveUpdateMetadata(t *testing.T) {
 			t.FailNow()
 		}
 		defer cleaner()
-		pg, err := NewPictureGroup(dirPath, []*ThumbSize{&DefaultThumbSize}, false, true, nil)
+		pg, err := NewPictureGroup(logger, dirPath, []*ThumbSize{&DefaultThumbSize}, false, true, nil)
 		if err != nil {
 			t.Errorf("NewPictureGroup() error = %v", err)
 			return

@@ -38,6 +38,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/perrito666/gollery/logs"
 	"github.com/perrito666/gollery/render"
 
 	"github.com/perrito666/gollery/album"
@@ -71,16 +72,16 @@ func isThumbRequest(fileNameAndWidth string) (string, int, int, bool) {
 
 // AlbumServer holds the necessary data to serve a given album.
 type AlbumServer struct {
-	RootFolder *album.PictureGroup
+	RootFolder *album.PictureFolder
 	Port       int64
 	Host       string
 	ThemePath  string
 	Theme      *render.Theme
-	Logger     *log.Logger
+	Logger     *logs.Logger
 	Metadata   map[string]string
 }
 
-func serveFolder(w http.ResponseWriter, r *http.Request, folder *album.PictureGroup, theme *render.Theme, meta map[string]string) {
+func serveFolder(w http.ResponseWriter, r *http.Request, folder *album.PictureFolder, theme *render.Theme, meta map[string]string) {
 	w.Header().Set("Content-Type", "text/html")
 	var b []byte
 	buf := bytes.NewBuffer(b)
@@ -103,7 +104,7 @@ func (a *AlbumServer) handler(w http.ResponseWriter, r *http.Request) {
 	URLPath := strings.Trim(r.URL.Path, "/")
 	pathComponents := strings.Split(URLPath, "/")
 	for i, component := range pathComponents {
-		if folder.HasSubAlbum(component) {
+		if folder.HasSubFolder(component) {
 			folder = folder.SubGroups[component]
 			if i == len(pathComponents)-1 {
 				serveFolder(w, r, folder, a.Theme, a.Metadata)
@@ -126,7 +127,7 @@ func (a *AlbumServer) handler(w http.ResponseWriter, r *http.Request) {
 			err := a.Theme.RenderPicture(folder, folder.Pictures[component], buf, a.Metadata)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				a.Logger.Printf("ERROR: %v", err)
+				a.Logger.Errorf("ERROR: %v", err)
 				return
 			}
 			w.Write(buf.Bytes())
