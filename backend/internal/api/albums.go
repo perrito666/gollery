@@ -20,7 +20,8 @@ func (s *Server) handleAlbumsRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	offset, limit := parsePagination(r)
-	writeJSON(w, http.StatusOK, albumToResponse(root, offset, limit))
+	opts := s.responseOpts(r)
+	writeJSON(w, http.StatusOK, albumToResponse(root, opts, offset, limit))
 }
 
 func (s *Server) handleAlbumByID(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +41,8 @@ func (s *Server) handleAlbumByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	offset, limit := parsePagination(r)
-	writeJSON(w, http.StatusOK, albumToResponse(album, offset, limit))
+	opts := s.responseOpts(r)
+	writeJSON(w, http.StatusOK, albumToResponse(album, opts, offset, limit))
 }
 
 // parsePagination extracts offset and limit from query parameters.

@@ -6,16 +6,19 @@
  */
 
 import { esc } from '../util/html.js';
+import { renderNav } from '../util/nav.js';
 
 export function render(container, viewModel, ctx) {
   if (!viewModel) {
-    container.innerHTML = '<div class="loading">Loading…</div>';
+    container.innerHTML = '<div class="loading">Loading\u2026</div>';
     return;
   }
 
-  const { router } = ctx;
+  const nav = renderNav(ctx);
 
-  let html = `<header class="page-header"><h1>${esc(viewModel.title || 'Gallery')}</h1>`;
+  let html = nav.html;
+
+  html += `<header class="page-header"><h1>${esc(viewModel.title || 'Gallery')}</h1>`;
   if (viewModel.description) {
     html += `<p class="album-description">${esc(viewModel.description)}</p>`;
   }
@@ -25,7 +28,7 @@ export function render(container, viewModel, ctx) {
   if (viewModel.children && viewModel.children.length > 0) {
     html += '<section class="album-children"><h2>Albums</h2><ul class="album-list">';
     for (const child of viewModel.children) {
-      html += `<li class="album-list-item"><a href="#/albums/${esc(child.path)}" class="album-link">${esc(child.path)}</a></li>`;
+      html += `<li class="album-list-item"><a href="#/albums/${esc(child.id)}" class="album-link">${esc(child.title || child.path)}</a></li>`;
     }
     html += '</ul></section>';
   }
@@ -47,6 +50,7 @@ export function render(container, viewModel, ctx) {
   }
 
   container.innerHTML = html;
+  nav.setup(container);
 }
 
 export function destroy() {}

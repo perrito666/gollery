@@ -8,6 +8,7 @@
 export class ApiClient {
   constructor(baseURL = '/api/v1') {
     this.baseURL = baseURL;
+    this._csrfToken = null;
   }
 
   async getAlbumsRoot() {
@@ -35,7 +36,10 @@ export class ApiClient {
   }
 
   async login(username, password) {
-    return this._post('/auth/login', { username, password });
+    const result = await this._post('/auth/login', { username, password });
+    // Fetch CSRF token after successful login.
+    await this._fetchCSRFToken();
+    return result;
   }
 
   async getMe() {
@@ -43,7 +47,22 @@ export class ApiClient {
   }
 
   async logout() {
-    return this._post('/auth/logout', {});
+    await this._post('/auth/logout', {});
+    this._csrfToken = null;
+  }
+
+  /** Fetch a CSRF token from the server. Called after login and session restore. */
+  async fetchCSRFToken() {
+    await this._fetchCSRFToken();
+  }
+
+  async _fetchCSRFToken() {
+    try {
+      const data = await this._get('/auth/csrf-token');
+      this._csrfToken = data.token;
+    } catch {
+      this._csrfToken = null;
+    }
   }
 
   async _get(path) {
@@ -56,14 +75,22 @@ export class ApiClient {
   }
 
   async _post(path, body) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this._csrfToken) {
+      headers['X-CSRF-Token'] = this._csrfToken;
+    }
     const resp = await fetch(this.baseURL + path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
     if (!resp.ok) {
       const data = await resp.json().catch(() => ({}));
       throw new ApiError(resp.status, data.message || resp.statusText);
+    }
+    // Handle empty responses (e.g. 204 No Content).
+    if (resp.status === 204 || resp.headers.get('content-length') === '0') {
+      return {};
     }
     return resp.json();
   }

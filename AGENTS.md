@@ -5,7 +5,7 @@ This repository is designed for development with coding agents.
 ## Current state
 
 **All 52 prompts across 12 phases are complete.** The development sequence is finished.
-See `docs/agent-workflow.md` for the full plan. Backend: 219 unit tests + 4 integration tests. Frontend: 38 tests, 11.4kb bundle.
+See `docs/agent-workflow.md` for the full plan. Post-prompt-52 improvements: Docker setup with nginx, `gollery-users` CLI, ACL-filtered listings, login/logout UI with CSRF, nav bar, configurable users file path.
 
 ## Core rules
 

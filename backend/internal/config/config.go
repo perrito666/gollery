@@ -48,6 +48,11 @@ type AuthConfig struct {
 	// SessionSecret is used to sign session tokens.
 	SessionSecret string `json:"session_secret"`
 
+	// UsersFile is the path to the users.json file. If empty, the server
+	// looks for users.json next to the config file, then in the working
+	// directory, then in content_root.
+	UsersFile string `json:"users_file,omitempty"`
+
 	// RateLimit configures rate limiting on auth endpoints.
 	RateLimit *RateLimitConfig `json:"rate_limit,omitempty"`
 }

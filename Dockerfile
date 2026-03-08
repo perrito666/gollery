@@ -1,5 +1,5 @@
 # Stage 1: Build Go backend
-FROM golang:1.23-bookworm AS backend-builder
+FROM golang:1.25-bookworm AS backend-builder
 WORKDIR /src
 COPY backend/ ./backend/
 WORKDIR /src/backend
@@ -8,6 +8,7 @@ RUN CGO_ENABLED=0 go build -o /galleryd ./cmd/galleryd
 
 # Stage 2: Build frontend
 FROM node:22-bookworm-slim AS frontend-builder
+RUN apt-get update && apt-get install -y --no-install-recommends make && rm -rf /var/lib/apt/lists/*
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
@@ -16,7 +17,7 @@ RUN make build
 
 # Stage 3: Runtime image
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-builder /galleryd /usr/local/bin/galleryd
 COPY --from=frontend-builder /src/frontend/dist /var/lib/gollery/frontend

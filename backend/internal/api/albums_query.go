@@ -24,5 +24,6 @@ func (s *Server) handleAlbumsByPath(w http.ResponseWriter, r *http.Request) {
 	}
 
 	offset, limit := parsePagination(r)
-	writeJSON(w, http.StatusOK, albumToResponse(album, offset, limit))
+	opts := s.responseOpts(r)
+	writeJSON(w, http.StatusOK, albumToResponse(album, opts, offset, limit))
 }

@@ -18,6 +18,46 @@ body {
   padding: 1rem;
 }
 
+/* Site navigation */
+.site-nav {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.nav-home {
+  font-weight: 600;
+  color: #333;
+  text-decoration: none;
+  font-size: 1.1rem;
+}
+
+.nav-home:hover {
+  color: #0066cc;
+}
+
+.nav-spacer {
+  flex: 1;
+}
+
+.nav-user {
+  color: #666;
+  font-size: 0.875rem;
+  margin-right: 0.75rem;
+}
+
+.nav-login,
+.nav-logout {
+  font-size: 0.8rem;
+}
+
+.btn-small {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+}
+
 /* Page header */
 .page-header {
   margin-bottom: 1.5rem;

@@ -117,7 +117,7 @@ func TestSetupAuth_UnsupportedProvider(t *testing.T) {
 		},
 	}
 
-	err := setupAuth(srv, cfg)
+	err := setupAuth(srv, cfg, "gollery.json")
 	if err == nil {
 		t.Fatal("expected error for unsupported provider")
 	}

@@ -16,6 +16,8 @@ export class Session {
     try {
       const me = await this.api.getMe();
       this.store.set({ principal: me });
+      // Fetch CSRF token for POST requests.
+      await this.api.fetchCSRFToken();
     } catch {
       this.store.set({ principal: null });
     }

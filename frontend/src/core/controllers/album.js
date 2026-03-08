@@ -42,7 +42,7 @@ export class AlbumController {
       title: album.title,
       description: album.description || '',
       path: album.path,
-      children: (album.children || []).map(path => ({ path })),
+      children: (album.children || []).map(c => ({ id: c.id, path: c.path, title: c.title })),
       assets: (album.assets || []).map(a => ({
         id: a.id,
         filename: a.filename,

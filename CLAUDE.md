@@ -19,7 +19,9 @@ Gollery is a filesystem-first image gallery monorepo with a Go backend and light
 
 **All 52 prompts across 12 phases are complete.** The development sequence is finished.
 
-The backend compiles, vets, and passes all 219 unit tests (+ 4 integration tests) across 19 packages. The frontend bundles at 11.4kb minified and passes 38 tests across 8 suites. The server starts via `app.Run()` with signal-aware graceful shutdown, concrete auth (bcrypt + HMAC sessions), CSRF protection, rate limiting, structured logging, all API routes, pagination, EXIF extraction, and deployment configs (Dockerfile + docker-compose).
+The backend compiles, vets, and passes all unit tests (+ 4 integration tests) across 19 packages. The frontend bundles at ~12kb minified and passes tests across 8 suites. The server starts via `app.Run()` with signal-aware graceful shutdown, concrete auth (bcrypt + HMAC sessions), CSRF protection, rate limiting, structured logging, all API routes, pagination, EXIF extraction, and deployment configs (Dockerfile + docker-compose + nginx).
+
+Post-prompt-52 improvements include: Docker setup with nginx for frontend serving, `gollery-users` CLI tool, configurable users file path, album children returned with IDs/titles, ACL-filtered album listings, login/logout UI with CSRF support, and nav bar.
 
 See `docs/agent-workflow.md` for the full 52-prompt, 12-phase plan (all complete).
 

@@ -26,14 +26,21 @@ type APIError struct {
 
 // AlbumResponse is the JSON representation of an album.
 type AlbumResponse struct {
-	ID          string         `json:"id"`
-	Path        string         `json:"path"`
-	Title       string         `json:"title"`
-	Description string         `json:"description,omitempty"`
-	ParentPath  string         `json:"parent_path,omitempty"`
-	Children    []string       `json:"children"`
-	Assets      []AssetSummary `json:"assets"`
-	TotalAssets int            `json:"total_assets"`
+	ID          string              `json:"id"`
+	Path        string              `json:"path"`
+	Title       string              `json:"title"`
+	Description string              `json:"description,omitempty"`
+	ParentPath  string              `json:"parent_path,omitempty"`
+	Children    []ChildAlbumSummary `json:"children"`
+	Assets      []AssetSummary      `json:"assets"`
+	TotalAssets int                 `json:"total_assets"`
+}
+
+// ChildAlbumSummary is a brief representation of a child album.
+type ChildAlbumSummary struct {
+	ID    string `json:"id"`
+	Path  string `json:"path"`
+	Title string `json:"title,omitempty"`
 }
 
 // AssetSummary is a brief representation of an asset within an album listing.
@@ -386,6 +393,16 @@ func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request, album *dom
 	return true
 }
 
+// responseOpts builds albumResponseOpts from the current request and server state.
+// Must be called while s.mu is held.
+func (s *Server) responseOpts(r *http.Request) albumResponseOpts {
+	return albumResponseOpts{
+		albumsByPath: s.albumsByPath,
+		configs:      s.configs,
+		principal:    auth.PrincipalFromContext(r.Context()),
+	}
+}
+
 func handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -444,8 +461,27 @@ const (
 	maxPageLimit     = 500
 )
 
-func albumToResponse(a *domain.Album, offset, limit int) AlbumResponse {
-	total := len(a.Assets)
+// albumResponseOpts holds contextual data needed to filter album responses
+// by the current user's access level.
+type albumResponseOpts struct {
+	albumsByPath map[string]*domain.Album
+	configs      map[string]*config.AlbumConfig
+	principal    *domain.Principal
+}
+
+func albumToResponse(a *domain.Album, opts albumResponseOpts, offset, limit int) AlbumResponse {
+	albumACL := effectiveAlbumACL(opts.configs, a.Path)
+
+	// Filter assets the principal can view.
+	var visible []domain.Asset
+	for _, ast := range a.Assets {
+		effectiveACL := access.EffectiveAssetACL(albumACL, ast.Access)
+		if access.CheckView(effectiveACL, opts.principal) == access.Allow {
+			visible = append(visible, ast)
+		}
+	}
+
+	total := len(visible)
 
 	// Clamp offset.
 	if offset < 0 {
@@ -468,16 +504,27 @@ func albumToResponse(a *domain.Album, offset, limit int) AlbumResponse {
 		end = total
 	}
 
-	page := a.Assets[offset:end]
+	page := visible[offset:end]
 	assets := make([]AssetSummary, len(page))
 	for i, ast := range page {
 		assets[i] = AssetSummary{ID: ast.ID, Filename: ast.Filename}
 	}
 
-	children := a.Children
-	if children == nil {
-		children = []string{}
+	// Filter children the principal can view.
+	children := make([]ChildAlbumSummary, 0, len(a.Children))
+	for _, childPath := range a.Children {
+		childACL := effectiveAlbumACL(opts.configs, childPath)
+		if access.CheckView(childACL, opts.principal) == access.Deny {
+			continue
+		}
+		cs := ChildAlbumSummary{Path: childPath}
+		if child, ok := opts.albumsByPath[childPath]; ok {
+			cs.ID = child.ID
+			cs.Title = child.Title
+		}
+		children = append(children, cs)
 	}
+
 	return AlbumResponse{
 		ID:          a.ID,
 		Path:        a.Path,
@@ -488,6 +535,14 @@ func albumToResponse(a *domain.Album, offset, limit int) AlbumResponse {
 		Assets:      assets,
 		TotalAssets: total,
 	}
+}
+
+// effectiveAlbumACL returns the AccessConfig for an album path, or nil.
+func effectiveAlbumACL(configs map[string]*config.AlbumConfig, path string) *config.AccessConfig {
+	if cfg, ok := configs[path]; ok {
+		return cfg.Access
+	}
+	return nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

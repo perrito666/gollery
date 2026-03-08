@@ -332,6 +332,10 @@ galleryd --config /etc/gollery/gollery.json
 galleryd --version
 ```
 
+### cmd/gollery-users — User Management CLI
+
+Standalone tool for managing `users.json`. Supports `list`, `add`, `remove`, `passwd`, `set-admin`, `set-groups`. Handles bcrypt hashing automatically. See [docs/user-management.md](docs/user-management.md).
+
 ## Frontend Subsystem Walkthrough
 
 ### Data Flow
@@ -357,7 +361,7 @@ const album = await api.getAlbum('alb_abc123');
 const url = api.thumbnailURL('ast_def456', 200);
 ```
 
-Throws typed `ApiError` with HTTP status and message on failure.
+Throws typed `ApiError` with HTTP status and message on failure. Handles CSRF tokens automatically — fetches a token after login/session restore and includes it as `X-CSRF-Token` on all POST requests.
 
 ### core/state/store.js — Reactive Store
 
@@ -383,10 +387,11 @@ const router = new Router();
 router.on('/', () => albumController.showRoot());
 router.on('/albums/:id', ({ id }) => albumController.showAlbum(id));
 router.on('/assets/:id', ({ id }) => assetController.showAsset(id));
+router.on('/login', () => store.set({ currentView: 'login', ... }));
 router.start();
 ```
 
-Pattern parameters (`:id`) are extracted and passed to handlers.
+Pattern parameters (`:id`) are extracted and passed to handlers. Album IDs use stable `alb_<hex>` identifiers, not filesystem paths.
 
 ### core/controllers — Business Logic
 
@@ -454,8 +459,9 @@ Seven views: `home`, `album`, `asset`, `login`, `not-found`, `forbidden`, `error
 All views:
 - Build HTML strings (no virtual DOM, no framework)
 - Escape all dynamic content with `esc()` for XSS safety
-- Use hash links (`#/albums/alb_abc123`) for navigation
+- Use hash links (`#/albums/alb_abc123`) for navigation — album children include `id`, `path`, and `title`
 - Receive data exclusively through `viewModel` and `ctx`
+- `home` and `album` views include a shared nav bar (`ui-default/util/nav.js`) with login/logout controls
 
 ### Build System
 
@@ -474,28 +480,40 @@ npx esbuild src/main.js --bundle --outfile=dist/bundle.js --format=esm --minify
 
 ### Prerequisites
 
-- Go 1.23+
+- Go 1.25+
 - Node.js 22+
-- Docker and Docker Compose (for PostgreSQL)
+- Docker and Docker Compose (for PostgreSQL and nginx)
 
 ### Option 1: Docker Compose (recommended)
 
 ```bash
-# Create a sample content directory with some images
+# Build frontend first
+make frontend-build
+
+# Create a sample content directory with some images and album.json files
 mkdir -p sample-content/vacation
 cp /path/to/some/photos/* sample-content/vacation/
+# Each directory needs an album.json — see docs/running-locally.md
+
+# Create users.json with the gollery-users tool
+cd backend && go build -o gollery-users ./cmd/gollery-users
+./gollery-users -file ../users.json add -username admin -password admin -admin -groups admins
 
 # Start everything
-docker compose up -d
+docker compose up --build
 
-# Open http://localhost:8080
-# Login: admin / changeme
+# Open http://localhost:8090 (nginx serves frontend + proxies API)
+# API also available at http://localhost:8080
 ```
 
-The `docker-compose.yml` starts both the gallery server and PostgreSQL. It mounts:
+The `docker-compose.yml` starts three services: `galleryd` (API), `nginx` (frontend + proxy), and `postgres` (analytics). It mounts:
 - `./sample-content` → `/data/content` (your images)
 - `./gollery.json` → `/etc/gollery/gollery.json` (server config)
 - `./users.json` → `/etc/gollery/users.json` (user database)
+- `./frontend/dist` → nginx html root (frontend files)
+- `./nginx.conf` → nginx config
+
+See [docs/running-locally.md](docs/running-locally.md) for a detailed guide.
 
 ### Option 2: Run directly
 
@@ -579,13 +597,22 @@ Sensitive values should be set via environment variables:
 ]
 ```
 
-Passwords are bcrypt hashes. Generate one with:
+Passwords are bcrypt hashes. Use the `gollery-users` CLI tool to manage users:
 
 ```bash
-go run -e 'import "golang.org/x/crypto/bcrypt"; h, _ := bcrypt.GenerateFromPassword([]byte("mypassword"), 10); fmt.Println(string(h))'
+cd backend && go build -o gollery-users ./cmd/gollery-users
+
+# Add a user (auto-hashes password)
+./gollery-users add -username alice -password secret -groups editors
+
+# Change password
+./gollery-users passwd -username alice -password newpass
+
+# List users
+./gollery-users list
 ```
 
-Or use any bcrypt tool.
+See [docs/user-management.md](docs/user-management.md) for the full reference.
 
 **`album.json`** — Per-album configuration (placed alongside images):
 

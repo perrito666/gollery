@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/perrito666/gollery/backend/internal/analytics"
@@ -65,7 +66,7 @@ func Run(ctx context.Context, configPath string) error {
 
 	// 5. Initialize auth if configured.
 	if cfg.Auth != nil {
-		if err := setupAuth(srv, cfg); err != nil {
+		if err := setupAuth(srv, cfg, configPath); err != nil {
 			return fmt.Errorf("setting up auth: %w", err)
 		}
 	}
@@ -205,17 +206,29 @@ func extractConfigs(scan *fswalk.ScanResult) map[string]*config.AlbumConfig {
 }
 
 // setupAuth initializes authentication from config.
-func setupAuth(srv *api.Server, cfg *config.ServerConfig) error {
+func setupAuth(srv *api.Server, cfg *config.ServerConfig, configPath string) error {
 	// For now, only "static" provider is supported (file-based user store).
 	if cfg.Auth.Provider != "static" {
 		return fmt.Errorf("unsupported auth provider: %q", cfg.Auth.Provider)
 	}
 
-	// Look for users.json next to the config file or in content root.
-	usersPath := "users.json"
-	if _, err := os.Stat(usersPath); err != nil {
-		// Try content root.
-		usersPath = cfg.ContentRoot + "/users.json"
+	// Resolve users.json path: explicit config > next to config file > cwd > content root.
+	usersPath := cfg.Auth.UsersFile
+	if usersPath == "" {
+		candidates := []string{
+			filepath.Join(filepath.Dir(configPath), "users.json"),
+			"users.json",
+			filepath.Join(cfg.ContentRoot, "users.json"),
+		}
+		for _, c := range candidates {
+			if _, err := os.Stat(c); err == nil {
+				usersPath = c
+				break
+			}
+		}
+		if usersPath == "" {
+			return fmt.Errorf("users.json not found (searched next to config, cwd, and content root)")
+		}
 	}
 
 	userStore, err := auth.LoadFileUserStore(usersPath)

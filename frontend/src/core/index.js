@@ -64,7 +64,10 @@ export function init(registry, container, siteConfig = {}) {
   router
     .on('/', () => albumCtrl.showRoot())
     .on('/albums/:id', (params) => albumCtrl.showAlbum(params.id))
-    .on('/assets/:id', (params) => assetCtrl.showAsset(params.id));
+    .on('/assets/:id', (params) => assetCtrl.showAsset(params.id))
+    .on('/login', () => {
+      store.set({ currentView: 'login', viewModel: null, loading: false, error: null });
+    });
 
   // Catch-all for unmatched routes.
   router.onNotFound(() => {
