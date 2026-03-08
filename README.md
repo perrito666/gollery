@@ -11,9 +11,9 @@ A filesystem-first image gallery monorepo written in Go, with a lightweight cust
 
 ## Current status
 
-Phase 1 (foundation, prompts 01–18) is complete. The backend compiles and passes all tests. The frontend bundles at ~12kb. The server does not run end-to-end yet — that comes in Phase 7 (prompts 37–38).
+All 12 phases (prompts 01–52) are complete. The backend compiles, vets, and passes all 219 unit tests (+ 4 integration tests) across 19 packages. The frontend bundles at ~11.4kb minified and passes 38 tests across 8 suites. The server runs end-to-end via `app.Run()` with signal-aware graceful shutdown.
 
-See `docs/agent-workflow.md` for the full implementation plan.
+See `docs/agent-workflow.md` for the full implementation plan and future roadmap (phases 13–23).
 
 ## Monorepo structure
 
@@ -41,39 +41,29 @@ make frontend-build   # resolve theme + esbuild bundle
 
 # Both
 make backend-build && make frontend-build
+
+# Docker
+docker-compose up     # runs gallery + PostgreSQL
 ```
 
-## Implementation plan
+## Features
 
-### Completed
-- Filesystem scanner with publication rules and config inheritance
-- Sidecar state management with stable object IDs
-- Snapshot builder (scan → domain model)
-- ACL engine (public / authenticated / restricted)
-- Auth abstraction (interfaces)
-- REST API baseline (6 endpoints: albums, assets, derivatives)
-- Image derivative generation (thumbnails, previews)
-- Discussion providers (Mastodon, Bluesky)
-- PostgreSQL popularity analytics with tern migrations
-- Filesystem watcher with debounced reconciliation
-- Frontend core (API client, router, store, session, controllers)
-- Frontend default UI (7 views, classic album grid)
-- Frontend build/override system (site layer)
-- Frontend optional popularity components
-- First hardening pass
-
-### Remaining (prompts 19–52)
-- Frontend refactors (shared utilities, error handling)
-- Production infrastructure (logging, config, auth, CSRF, rate limiting)
-- Missing API routes (discussions, access, admin, analytics)
-- Analytics wiring (event recording, retention jobs)
-- API middleware chain and route group refactor
-- App wiring and server startup
-- Derivative quality, cache eviction, asset ACLs, prev/next nav
-- Frontend tests
-- Pagination, EXIF metadata
-- Deployment configs (Dockerfile, docker-compose)
-- Final hardening and production readiness audit
+- **Filesystem scanner** with publication rules, config inheritance, and debounced watcher
+- **Sidecar state** management with stable object IDs (`alb_<hex>` / `ast_<hex>`)
+- **Snapshot builder** (scan → domain model)
+- **ACL engine** (public / authenticated / restricted) with asset-level overrides
+- **Concrete auth** — file-based user store, bcrypt passwords, HMAC cookie sessions
+- **CSRF protection** and **rate limiting**
+- **REST API** — albums, assets, derivatives, discussions, access, admin, analytics, pagination, prev/next navigation
+- **Image derivatives** — CatmullRom quality scaling, cache eviction for orphans
+- **EXIF metadata** extraction
+- **Discussion providers** — Mastodon, Bluesky (pluggable via `Provider` interface)
+- **PostgreSQL popularity analytics** — tern migrations, event recording, retention jobs
+- **Structured logging** (slog) throughout
+- **Frontend** — 7 default views, classic album grid, login state, optional popularity components
+- **Frontend build/override system** — site layer for customization without touching core
+- **Deployment** — multi-stage Dockerfile, docker-compose with PostgreSQL
+- **Signal-aware graceful shutdown**
 
 ## For coding agents
 
