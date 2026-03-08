@@ -155,7 +155,72 @@ Discussion publication is editorial state. It belongs in sidecars, not in `album
 
 ---
 
-## 9. Optional popularity analytics
+## 9. Derivatives and cache
+
+### What derivatives are
+
+Derivatives are resized versions of source images, generated on demand by the server. There are two kinds:
+
+- **Thumbnails** — small images (default 400px longest edge) used in album grid views.
+- **Previews** — larger images (default 1600px longest edge) used in the asset detail/lightbox view.
+
+The original source file is never modified. Derivatives are always JPEG regardless of the source format (JPEG or PNG).
+
+### Cache directory layout
+
+Derivatives are stored in a cache directory outside the content tree:
+
+```text
+<cache-root>/
+├── thumbs/
+│   ├── ast_a1b2c3_400.jpg
+│   └── ast_d4e5f6_200.jpg
+└── previews/
+    ├── ast_a1b2c3_1600.jpg
+    └── ast_d4e5f6_1200.jpg
+```
+
+The cache root is configured via `derivative_cache_dir` in the server config and defaults to `.gallery-cache` relative to the content root.
+
+### Filename convention
+
+Each cached file is named `<assetID>_<size>.jpg`, where:
+
+- `assetID` is the stable sidecar ID (e.g. `ast_a1b2c3`)
+- `size` is the longest-edge pixel count
+
+A single asset can have multiple cached sizes if clients request different dimensions.
+
+### Generation flow
+
+1. API handler receives request (e.g. `GET /api/v1/assets/{id}/thumbnail?size=400`).
+2. Handler looks up the asset by ID in the in-memory index, checks ACL.
+3. Handler calls `derive.GenerateThumbnail(layout, assetID, sourcePath, size)`.
+4. Derive function computes the expected cache path and checks if it exists (cache hit → return immediately).
+5. On cache miss: decode source image, scale with CatmullRom interpolation (aspect-ratio preserving, no upscaling), encode as JPEG quality 85, write to cache path.
+6. Handler serves the resulting file via `http.ServeFile`.
+
+### Scaling algorithm
+
+CatmullRom interpolation from `golang.org/x/image/draw` is used for high-quality downscaling. Images are never upscaled — if both dimensions are already within the requested size, the original dimensions are preserved.
+
+### Cache eviction
+
+There is no TTL-based expiration. Source images are treated as immutable — if a file changes, it gets a new sidecar ID, so old derivatives become orphans.
+
+`cache.PurgeOrphans(layout, knownAssetIDs)` scans both subdirectories and removes any file whose asset ID prefix is not in the known set. This runs after re-indexing.
+
+### Path safety
+
+All cache paths are constructed by `cache.Layout` methods using `filepath.Join` on the configured root plus a filename built from the asset ID and size integer. Asset IDs come from the sidecar state layer (`ast_<hex>` format) and are never derived from user input. The API layer resolves IDs from an in-memory map; raw URL parameters never reach path construction.
+
+### Concurrency
+
+Multiple requests can generate derivatives concurrently. File creation for distinct paths is naturally safe. Two concurrent requests for the same asset+size may both generate, but the output is identical so the last writer wins harmlessly.
+
+---
+
+## 10. Optional popularity analytics
 
 Track, as precisely as practical, events such as:
 - album views
@@ -177,7 +242,7 @@ Analytics must not become a dependency for rendering the gallery correctly.
 
 ---
 
-## 10. GDPR-safe analytics requirements
+## 11. GDPR-safe analytics requirements
 
 Popularity tracking must be useful but privacy-preserving.
 
@@ -238,7 +303,7 @@ Admin analytics may expose:
 
 ---
 
-## 11. API shape
+## 12. API shape
 
 Albums:
 - `GET /api/v1/albums/root`
@@ -280,7 +345,7 @@ Analytics:
 
 ---
 
-## 12. Recommended package layout
+## 13. Recommended package layout
 
 ```text
 backend/
@@ -308,7 +373,7 @@ backend/
 
 ---
 
-## 13. Implementation order
+## 14. Implementation order
 
 1. repo skeleton
 2. config/domain/merge logic
@@ -327,7 +392,7 @@ backend/
 
 ---
 
-## 14. Final summary
+## 15. Final summary
 
 Filesystem owns:
 - content

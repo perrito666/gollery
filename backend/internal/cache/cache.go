@@ -1,4 +1,59 @@
-// Package cache manages the gallery-cache directory for generated artifacts.
+// Package cache manages the gallery-cache directory layout for generated
+// image derivatives (thumbnails and previews).
+//
+// # Directory structure
+//
+// The cache lives outside the content tree to keep source directories clean.
+// A typical layout:
+//
+//	<cache-root>/
+//	├── thumbs/          # thumbnails (small, square-ish images for grids)
+//	│   ├── ast_a1b2c3_400.jpg
+//	│   └── ast_d4e5f6_400.jpg
+//	└── previews/        # previews (larger images for detail views)
+//	    ├── ast_a1b2c3_1600.jpg
+//	    └── ast_d4e5f6_1600.jpg
+//
+// The cache root is configured via [config.ServerConfig].DerivativeCacheDir
+// and defaults to ".gallery-cache" relative to the content root.
+//
+// # Filename convention
+//
+// Every cached file is named <assetID>_<size>.jpg, where assetID is the
+// stable sidecar ID (e.g. "ast_a1b2c3") and size is the longest-edge pixel
+// count requested by the client. This naming scheme means a single asset can
+// have multiple cached sizes (e.g. ast_x_200.jpg and ast_x_400.jpg).
+//
+// # Cache lifecycle
+//
+//   - Generation: the [derive] package calls [Layout.ThumbPath] or
+//     [Layout.PreviewPath] to obtain the expected output path, checks
+//     [Exists], and writes the file only on a miss.
+//   - Eviction: [PurgeOrphans] scans both subdirectories and removes any
+//     file whose asset ID prefix is not in the supplied known-ID set.
+//     This is called after a re-index to clean up derivatives for deleted
+//     or renamed assets.
+//   - No TTL: cached files are valid indefinitely because source images
+//     are immutable. A changed source image gets a new asset ID (new
+//     sidecar entry), so old cache entries become orphans and are purged.
+//
+// # Path safety
+//
+// All paths are constructed by [Layout] methods using [filepath.Join] on
+// the configured root plus a filename built from the asset ID and size.
+// Asset IDs originate from the sidecar state layer (format "ast_<hex>")
+// and are never derived from user input. The API layer looks up asset IDs
+// from an in-memory index keyed by the URL path parameter; it never passes
+// raw user strings into cache path construction.
+//
+// # Concurrency
+//
+// The cache directory is written to by HTTP handlers under the server's
+// read-lock (multiple concurrent requests may generate derivatives for
+// different assets simultaneously). File creation uses [os.Create] which
+// is atomic at the filesystem level for distinct paths. Two concurrent
+// requests for the same derivative may race, but both produce identical
+// output so the last writer wins harmlessly.
 package cache
 
 import (

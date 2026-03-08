@@ -1,4 +1,51 @@
-// Package derive generates image derivatives such as thumbnails and previews.
+// Package derive generates image derivatives (thumbnails and previews) from
+// source images, using the [cache] package for storage.
+//
+// # How it works
+//
+// Each derivative endpoint (thumbnail, preview) follows the same pattern:
+//
+//  1. Compute the expected cache path via [cache.Layout.ThumbPath] or
+//     [cache.Layout.PreviewPath].
+//  2. If the file already exists on disk ([cache.Exists]), return the path
+//     immediately — cache hit.
+//  3. Otherwise, decode the source image, scale it with CatmullRom
+//     interpolation (high quality, moderate cost), encode as JPEG at
+//     quality 85, and write to the cache path.
+//
+// # Scaling algorithm
+//
+// Images are scaled so the longest edge equals the requested size, preserving
+// the original aspect ratio. If both dimensions are already within the
+// requested size, the image is returned at its original dimensions (no
+// upscaling). The [golang.org/x/image/draw] CatmullRom scaler is used for
+// visual quality; it is slower than NearestNeighbor or ApproxBiLinear but
+// produces noticeably sharper results for photographic content.
+//
+// # Supported input formats
+//
+// JPEG and PNG sources are supported (PNG decoder is registered via a blank
+// import). The output is always JPEG regardless of the source format.
+//
+// # Error handling
+//
+// If encoding fails after the output file has been created, the partial file
+// is removed before the error is returned to avoid leaving corrupt cache
+// entries.
+//
+// # Concurrency
+//
+// [GenerateThumbnail] and [GeneratePreview] are safe to call concurrently
+// for different assets. Two concurrent calls for the same asset+size may
+// both decode and encode, but the result is identical so the race is benign.
+// No locking is performed beyond what the filesystem provides.
+//
+// # Integration with the API
+//
+// The API handlers in [api.handleAssetThumbnail] and [api.handleAssetPreview]
+// call these functions, then serve the resulting file path via
+// [http.ServeFile]. The source path is constructed from scanner-populated
+// data (album path + filename), never from raw user input.
 package derive
 
 import (
@@ -99,4 +146,3 @@ func fitDimensions(w, h, maxSize int) (int, int) {
 	}
 	return w * maxSize / h, maxSize
 }
-
