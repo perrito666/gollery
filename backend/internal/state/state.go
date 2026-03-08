@@ -1,4 +1,49 @@
-// Package state manages mutable sidecar state in .gallery/*.state.json files.
+// Package state manages mutable sidecar state in .gallery/ directories.
+//
+// # What sidecar state is
+//
+// Sidecar state is data the server persists alongside the content tree
+// to track things that aren't part of the source images or album.json:
+//
+//   - Stable object IDs (alb_<hex>, ast_<hex>) — needed because filesystem
+//     paths can change, but discussions and analytics need permanent refs.
+//   - Discussion bindings — links to external threads (Mastodon, Bluesky).
+//   - Per-asset ACL overrides — allow individual images to have different
+//     visibility than their containing album.
+//
+// # File layout
+//
+// Each album directory may have a .gallery/ subdirectory:
+//
+//	<album>/
+//	├── album.json              (declarative config, never written by server)
+//	├── image1.jpg
+//	├── image2.jpg
+//	└── .gallery/
+//	    ├── album.state.json    (album ID, discussion bindings)
+//	    └── assets/
+//	        ├── image1.jpg.json (asset ID, ACL override, discussion bindings)
+//	        └── image2.jpg.json
+//
+// # Atomicity
+//
+// All writes use [atomicWriteJSON]: marshal to temp file in the same
+// directory, then [os.Rename]. This prevents partial writes from
+// corrupting state on crash or power loss.
+//
+// # ID generation
+//
+// IDs are 16 random bytes from crypto/rand, hex-encoded, with a prefix
+// (alb_ or ast_). [EnsureAlbumID] and [EnsureAssetID] are idempotent:
+// they load existing state if present, or generate and persist a new ID
+// if absent. This means the first scan of new content creates sidecar
+// files, and subsequent scans reuse them.
+//
+// # Important: the server writes here
+//
+// The .gallery/ directories are the only place the server writes into the
+// content tree. album.json is strictly read-only (declarative config owned
+// by the user). This separation is a core invariant of the architecture.
 package state
 
 import (
@@ -11,25 +56,25 @@ import (
 )
 
 const (
-	galleryDir      = ".gallery"
-	albumStateFile  = "album.state.json"
-	assetsDir       = "assets"
-	albumIDPrefix   = "alb_"
-	assetIDPrefix   = "ast_"
-	idRandomBytes   = 16
+	galleryDir     = ".gallery"
+	albumStateFile = "album.state.json"
+	assetsDir      = "assets"
+	albumIDPrefix  = "alb_"
+	assetIDPrefix  = "ast_"
+	idRandomBytes  = 16
 )
 
 // AlbumState holds the mutable editorial state for an album.
 type AlbumState struct {
-	ObjectID   string               `json:"object_id"`
+	ObjectID    string              `json:"object_id"`
 	Discussions []DiscussionBinding `json:"discussions,omitempty"`
 }
 
 // AssetState holds the mutable editorial state for an asset.
 type AssetState struct {
-	ObjectID       string               `json:"object_id"`
-	Discussions    []DiscussionBinding   `json:"discussions,omitempty"`
-	AccessOverride *AccessOverride       `json:"access_override,omitempty"`
+	ObjectID       string              `json:"object_id"`
+	Discussions    []DiscussionBinding `json:"discussions,omitempty"`
+	AccessOverride *AccessOverride     `json:"access_override,omitempty"`
 }
 
 // AccessOverride stores per-asset ACL overrides in sidecar state.

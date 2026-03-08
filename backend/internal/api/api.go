@@ -1,4 +1,57 @@
-// Package api implements the REST API handlers and routing.
+// Package api implements the REST API handlers, routing, and middleware.
+//
+// # Server architecture
+//
+// [Server] is the central struct holding all API state. It owns:
+//
+//   - A [domain.Snapshot] with the full album/asset tree (read-locked).
+//   - In-memory indexes: albumsByID, albumsByPath, assetsByID — built
+//     from the snapshot for O(1) lookups.
+//   - Album configs (merged) keyed by path, used for ACL evaluation.
+//   - Optional subsystems: auth, discussions, analytics, cache/derivatives.
+//
+// All request-time data (albums, assets, ACLs, configs) lives in memory.
+// There are no database queries or file reads on the hot path (except
+// derivative generation on cache miss, which reads the source image).
+//
+// # Concurrency model
+//
+// The snapshot and indexes are protected by a [sync.RWMutex]:
+//   - All API handlers acquire the read lock.
+//   - [SetSnapshot] acquires the write lock to swap in a new snapshot.
+//
+// This means API requests are fully concurrent with each other but block
+// briefly during a re-index swap. The swap itself is O(N) in the number
+// of albums+assets (building the index maps), but the critical section
+// is just the pointer swap.
+//
+// # ACL enforcement
+//
+// ACL checks happen at two levels:
+//   - Album level: [checkAlbumAccess] checks the album's config.
+//   - Asset level: [checkAssetAccess] merges album ACL with per-asset
+//     overrides via [access.EffectiveAssetACL].
+//
+// Additionally, [albumToResponse] filters both assets and child albums
+// by the current principal's access, so API responses never leak
+// restricted content (not even IDs or filenames).
+//
+// # Middleware chain
+//
+// When auth is configured, the handler chain is:
+//
+//	RateLimitMiddleware → csrfMiddleware → authMiddleware → mux
+//
+// The auth middleware runs on every request (extracts session, sets
+// principal in context). CSRF middleware only validates on POST/PATCH/DELETE.
+// Rate limiting only applies to auth endpoints.
+//
+// # Pagination
+//
+// Album asset listings support offset/limit pagination with configurable
+// defaults (100) and max (500). Pagination operates on the ACL-filtered
+// asset list, so the total_assets count reflects only what the current
+// user can see.
 package api
 
 import (
@@ -51,13 +104,13 @@ type AssetSummary struct {
 
 // AssetResponse is the JSON representation of an asset.
 type AssetResponse struct {
-	ID           string  `json:"id"`
-	Filename     string  `json:"filename"`
-	AlbumPath    string  `json:"album_path"`
-	AlbumID      string  `json:"album_id"`
-	SizeBytes    int64   `json:"size_bytes"`
-	PrevAssetID  *string `json:"prev_asset_id"`
-	NextAssetID  *string `json:"next_asset_id"`
+	ID          string  `json:"id"`
+	Filename    string  `json:"filename"`
+	AlbumPath   string  `json:"album_path"`
+	AlbumID     string  `json:"album_id"`
+	SizeBytes   int64   `json:"size_bytes"`
+	PrevAssetID *string `json:"prev_asset_id"`
+	NextAssetID *string `json:"next_asset_id"`
 }
 
 // LoginRequest is the JSON body for POST /api/v1/auth/login.

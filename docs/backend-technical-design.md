@@ -220,7 +220,79 @@ Multiple requests can generate derivatives concurrently. File creation for disti
 
 ---
 
-## 10. Optional popularity analytics
+## 10. In-memory data model and scaling
+
+### Everything is in memory
+
+At runtime, the server holds a complete in-memory representation of the gallery:
+
+- **Snapshot** (`domain.Snapshot`) — the full album tree with all assets, built by `index.BuildSnapshot` from a filesystem scan plus sidecar state.
+- **Index maps** — `albumsByID`, `albumsByPath`, and `assetsByID` for O(1) lookups.
+- **Album configs** — the merged `config.AlbumConfig` for each album path, including ACL rules.
+- **Sessions** — user sessions in `CookieSessionStore` (in-memory map).
+- **Users** — loaded from `users.json` once at startup into `FileUserStore` (in-memory map).
+- **Watcher state** — last-seen modtime/size for every file in the content tree.
+
+There are **no database queries, no file reads, and no network calls** on the API request hot path (except derivative generation on cache miss, which reads the source image file).
+
+### ACL evaluation at request time
+
+ACL checks are pure functions over in-memory data:
+
+1. Handler looks up album/asset by ID from the index maps.
+2. Retrieves the merged `AccessConfig` from the configs map.
+3. For assets, merges album ACL with per-asset override via `access.EffectiveAssetACL`.
+4. Calls `access.CheckView(acl, principal)` — a simple switch on the view mode.
+
+Album listing responses are ACL-filtered: `albumToResponse` iterates assets and children, calling `CheckView` on each, so the response never leaks restricted content.
+
+### Concurrency
+
+The snapshot and indexes are protected by a `sync.RWMutex`:
+- All API handlers take the **read lock** (concurrent).
+- `SetSnapshot` takes the **write lock** to swap in a new snapshot (brief exclusive lock).
+
+This means API requests are fully concurrent with each other and only block momentarily during re-index.
+
+### Memory usage estimates
+
+| Content size | Albums | Assets | Approx. index RAM |
+|---|---|---|---|
+| Small personal gallery | 50 | 2,000 | ~1 MB |
+| Medium gallery | 500 | 50,000 | ~12 MB |
+| Large gallery | 2,000 | 200,000 | ~50 MB |
+| Very large | 5,000 | 1,000,000 | ~250 MB |
+
+Per-object overhead: ~500 bytes/album, ~200 bytes/asset, ~300 bytes/config. The watcher maintains a separate map (~100 bytes per filesystem entry). Sessions and users are negligible.
+
+### Re-index cost
+
+Every re-index (triggered by the watcher or admin endpoint) rebuilds the full snapshot:
+
+1. `fswalk.Scan` walks the content tree (reads directory listings + album.json files).
+2. `index.BuildSnapshot` loads/creates sidecar state for each album and asset.
+3. `Server.SetSnapshot` builds new index maps and swaps the snapshot.
+
+There is no incremental update. Rebuild time scales with total content:
+- 10,000 assets: ~1-2 seconds
+- 100,000 assets: ~10-15 seconds (dominated by sidecar I/O on first scan)
+
+During rebuild, the old snapshot continues serving requests. The swap is atomic from the API's perspective.
+
+### Scaling limitations
+
+This architecture is designed for **single-instance deployments**:
+
+- **Sessions** are in-memory — not shared across instances. Multi-instance would need Redis, PostgreSQL, or JWT-based sessions.
+- **Snapshot** is per-process — each instance would need its own scan, leading to redundant I/O and inconsistent views during re-index windows.
+- **User store** is loaded once at startup — adding a user requires restart.
+- **Watcher** state is per-process.
+
+For the intended use case (personal or small-team photo galleries), single-instance with the full index in RAM is the right tradeoff: zero-latency ACL checks, no external dependencies for core functionality, and simple deployment.
+
+---
+
+## 11. Optional popularity analytics
 
 Track, as precisely as practical, events such as:
 - album views
@@ -242,7 +314,7 @@ Analytics must not become a dependency for rendering the gallery correctly.
 
 ---
 
-## 11. GDPR-safe analytics requirements
+## 12. GDPR-safe analytics requirements
 
 Popularity tracking must be useful but privacy-preserving.
 
@@ -303,7 +375,7 @@ Admin analytics may expose:
 
 ---
 
-## 12. API shape
+## 13. API shape
 
 Albums:
 - `GET /api/v1/albums/root`
@@ -345,7 +417,7 @@ Analytics:
 
 ---
 
-## 13. Recommended package layout
+## 14. Recommended package layout
 
 ```text
 backend/
@@ -373,7 +445,7 @@ backend/
 
 ---
 
-## 14. Implementation order
+## 15. Implementation order
 
 1. repo skeleton
 2. config/domain/merge logic
@@ -392,7 +464,7 @@ backend/
 
 ---
 
-## 15. Final summary
+## 16. Final summary
 
 Filesystem owns:
 - content

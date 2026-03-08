@@ -1,4 +1,38 @@
-// Package index builds and maintains the in-memory album/asset index.
+// Package index builds the in-memory [domain.Snapshot] from scanner output
+// and sidecar state.
+//
+// # How it works
+//
+// [BuildSnapshot] takes the content root path and a [fswalk.ScanResult]
+// (which contains discovered albums and their assets) and produces a
+// [domain.Snapshot]:
+//
+//  1. For each scanned album, it calls [state.EnsureAlbumID] to load or
+//     create the album's stable ID from the sidecar file.
+//  2. For each asset, it calls [state.EnsureAssetID] similarly, and loads
+//     any per-asset ACL overrides from the sidecar.
+//  3. It assembles [domain.Album] and [domain.Asset] objects and stores
+//     them in the snapshot's Albums map (keyed by relative path).
+//
+// # Memory model
+//
+// The resulting Snapshot is a fully self-contained, read-only data structure.
+// It holds the complete album tree with all assets and their metadata.
+// The API server stores one Snapshot at a time behind a [sync.RWMutex]:
+// reads (all API requests) take the read lock, while re-indexing takes the
+// write lock to swap in a new Snapshot.
+//
+// There is no incremental update mechanism. Every re-index rebuilds the
+// full Snapshot from a fresh filesystem scan. This is simple and avoids
+// consistency issues but means rebuild time is proportional to the total
+// number of albums and assets.
+//
+// # Sidecar side effects
+//
+// [BuildSnapshot] writes sidecar state files for albums and assets that
+// don't have stable IDs yet. This is the only place the server writes to
+// the content tree (aside from admin-triggered state updates). The writes
+// use temp-file + rename for atomicity.
 package index
 
 import (

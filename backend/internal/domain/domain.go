@@ -1,4 +1,30 @@
 // Package domain defines core types shared across the backend.
+//
+// These types are the lingua franca between packages. They carry no behavior
+// beyond being data containers. Packages like [fswalk], [index], [access],
+// and [api] all operate on domain types.
+//
+// # Key types
+//
+//   - [Snapshot] — a point-in-time view of the entire gallery, built by
+//     [index.BuildSnapshot]. Held in memory by the API server and swapped
+//     atomically on re-index.
+//   - [Album] — a discovered album with its stable ID, path, children,
+//     and assets.
+//   - [Asset] — an image file with its stable ID, filename, and optional
+//     per-asset ACL override.
+//   - [Principal] — an authenticated user, carried in request context.
+//     A nil Principal means anonymous access.
+//   - [AccessOverride] — per-asset ACL fields that override the album-level
+//     access config. Loaded from sidecar state files.
+//
+// # Identity model
+//
+// Albums and assets have stable IDs (alb_<hex>, ast_<hex>) that are
+// persisted in sidecar state files. IDs are not derived from paths because
+// paths can change (rename/move), but discussions and analytics need stable
+// references. IDs are generated once by the [state] package using
+// crypto/rand and reused on subsequent scans.
 package domain
 
 import "time"

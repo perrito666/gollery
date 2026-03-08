@@ -1,4 +1,39 @@
-// Package watch monitors the filesystem for content changes.
+// Package watch monitors the filesystem for content changes using polling.
+//
+// # How it works
+//
+// [Watcher] periodically walks the content tree and compares file
+// modification times and sizes against its last scan. When differences
+// are detected, the affected directory paths are marked dirty. After a
+// configurable debounce delay (to batch rapid changes), the watcher
+// calls the [ReconcileFunc] with the list of dirty paths.
+//
+// The reconciliation function typically triggers a full re-scan and
+// snapshot rebuild (via [fswalk.Scan] + [index.BuildSnapshot]), then
+// swaps the new snapshot into the API server.
+//
+// # Why polling
+//
+// Polling was chosen over inotify/fsnotify because:
+//   - It works on all platforms and filesystems (including NFS/CIFS).
+//   - No limit on the number of watched directories.
+//   - Simpler to reason about correctness.
+//
+// The tradeoff is latency: changes are detected at the poll interval
+// (default 5 seconds) plus the debounce delay (default 2 seconds),
+// so worst-case detection is ~7 seconds.
+//
+// # Memory usage
+//
+// The watcher maintains a map of every file/directory path to its last
+// known modtime and size. This is separate from the API server's snapshot.
+// For a tree with 100,000 entries, this map uses roughly 10-15 MB.
+//
+// # Baseline scan
+//
+// The first scan establishes a baseline without marking anything dirty.
+// This prevents a full reconciliation on server startup (the initial
+// snapshot is built directly by the app startup code).
 package watch
 
 import (
