@@ -1,0 +1,14 @@
+[
+  {
+    "username": "admin",
+    "password": "$2a$10$EXAMPLE_BCRYPT_HASH_REPLACE_ME_WITH_REAL_ONE",
+    "groups": ["admins"],
+    "is_admin": true
+  },
+  {
+    "username": "viewer",
+    "password": "$2a$10$EXAMPLE_BCRYPT_HASH_REPLACE_ME_WITH_REAL_ONE",
+    "groups": ["viewers"],
+    "is_admin": false
+  }
+]

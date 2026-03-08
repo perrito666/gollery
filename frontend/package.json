@@ -1,0 +1,15 @@
+{
+  "name": "gollery-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lightweight static frontend for gollery",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --outfile=dist/app.js --format=esm --minify",
+    "dev": "esbuild src/main.js --bundle --outfile=dist/app.js --format=esm --watch --servedir=public",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

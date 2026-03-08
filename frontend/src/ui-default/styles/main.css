@@ -1,0 +1,256 @@
+/* Default styles for gollery */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  color: #333;
+  background: #fafafa;
+}
+
+#app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* Page header */
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.album-description {
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.breadcrumb a {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+/* Album list */
+.album-children {
+  margin-bottom: 1.5rem;
+}
+
+.album-children h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.album-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.album-list-item .album-link {
+  display: block;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.album-list-item .album-link:hover {
+  background: #f0f0f0;
+}
+
+/* Asset grid */
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.asset-thumb {
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #eee;
+}
+
+.asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Asset viewer */
+.asset-viewer {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.asset-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.asset-nav a {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.asset-nav a:hover {
+  text-decoration: underline;
+}
+
+.asset-nav .disabled {
+  color: #ccc;
+}
+
+.asset-figure {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.asset-preview {
+  max-width: 100%;
+  max-height: 80vh;
+  border-radius: 4px;
+}
+
+.asset-figure figcaption {
+  color: #666;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.asset-actions {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+/* Discussion links */
+.discussion-links {
+  margin-top: 1.5rem;
+  border-top: 1px solid #eee;
+  padding-top: 1rem;
+}
+
+.discussion-links h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.discussion-links ul {
+  list-style: none;
+  display: flex;
+  gap: 1rem;
+}
+
+.discussion-link {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.discussion-link:hover {
+  text-decoration: underline;
+}
+
+/* Login page */
+.login-page {
+  max-width: 400px;
+  margin: 4rem auto;
+}
+
+.login-page h1 {
+  margin-bottom: 1.5rem;
+}
+
+.login-form label {
+  display: block;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.login-form input {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.login-error {
+  color: #c00;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: #0066cc;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #0055aa;
+}
+
+/* Error pages */
+.error-page {
+  text-align: center;
+  margin-top: 4rem;
+}
+
+.error-page h1 {
+  font-size: 3rem;
+  color: #999;
+}
+
+.error-page p {
+  color: #666;
+  margin: 1rem 0;
+}
+
+/* Loading state */
+.loading {
+  text-align: center;
+  color: #999;
+  padding: 4rem;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
+}

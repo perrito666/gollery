@@ -1,0 +1,17 @@
+{
+  "content_root": "/path/to/your/photos",
+  "cache_dir": "/path/to/cache",
+  "listen_addr": ":8080",
+  "auth": {
+    "provider": "static",
+    "session_secret": "change-me-to-a-random-secret"
+  },
+  "analytics": {
+    "enabled": false,
+    "backend": "postgres",
+    "postgres_dsn_env": "GOLLERY_POSTGRES_DSN",
+    "hash_ip": true,
+    "dedup_window_seconds": 300,
+    "retain_events_days": 90
+  }
+}

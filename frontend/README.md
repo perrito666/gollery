@@ -1,11 +1,27 @@
 # frontend
 
-This directory will contain the lightweight static frontend.
+Lightweight static frontend for gollery.
 
-The frontend is split into:
-- core
-- ui-contract
-- ui-default
-- site
+## Layers
 
-Its purpose is to provide a classic album UI that can be customized without rewriting functionality.
+- `src/core/` — API access, auth, router, state, controllers
+- `src/ui-contract/` — view models, component contracts, events
+- `src/ui-default/` — default layouts, views, components, styles
+- `src/site/` — site-specific overrides (branding, CSS, components)
+
+## Build
+
+```bash
+make install
+make build
+```
+
+## Development
+
+```bash
+make dev
+```
+
+## Layout
+
+See `docs/frontend-technical-design.md` for the full design.

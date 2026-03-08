@@ -2,69 +2,82 @@
 
 A filesystem-first image gallery monorepo written in Go, with a lightweight customizable frontend and optional PostgreSQL-backed popularity analytics.
 
-This is the **full starter kit** intended to replace the existing `github.com/perrito666/gollery` repository with a clean monorepo structure optimized for incremental development through coding agents.
+## What this is
 
-## What this repository is for
-
-- **Backend**: Go REST API, filesystem-first catalog, ACLs, pluggable discussion providers
+- **Backend**: Go REST API, filesystem-first catalog, ACLs, pluggable discussion providers (Mastodon, Bluesky)
 - **Frontend**: lightweight static JavaScript app, customizable without touching core functionality
-- **Optional analytics**: PostgreSQL-backed popularity tracking designed to be GDPR-safe for Europe
-- **Agent-first workflow**: short prompts, narrow tasks, ADRs, and explicit contracts to avoid giant context windows
+- **Optional analytics**: PostgreSQL-backed popularity tracking designed to be GDPR-safe
+- **Agent-first workflow**: 52 short prompts across 12 phases, narrow tasks, ADRs
+
+## Current status
+
+Phase 1 (foundation, prompts 01–18) is complete. The backend compiles and passes all tests. The frontend bundles at ~12kb. The server does not run end-to-end yet — that comes in Phase 7 (prompts 37–38).
+
+See `docs/agent-workflow.md` for the full implementation plan.
 
 ## Monorepo structure
 
 ```text
-backend/
-frontend/
-docs/
-  backend-technical-design.md
-  frontend-technical-design.md
-  monorepo-layout.md
-  agent-workflow.md
-  agent-prompts/
-  adrs/
-.github/
-LICENSE
-Makefile
-AGENTS.md
-CONTRIBUTING.md
+backend/          Go REST API server
+frontend/         Lightweight static JavaScript app
+docs/             Architecture docs, ADRs, agent prompts
+scripts/          Helper scripts (test DB, etc.)
+Makefile          Top-level build targets
+AGENTS.md         Rules for coding agents
+CLAUDE.md         Claude Code project instructions
+CONTRIBUTING.md   How to contribute
+LICENSE           MIT
 ```
 
-## Recommended implementation order
-
-### Backend
-1. repo skeleton
-2. config + domain model
-3. scanner + publication rules
-4. sidecar state + stable IDs
-5. snapshot builder
-6. ACL engine
-7. auth abstraction
-8. baseline REST API
-9. derivative generation
-10. discussion abstraction
-11. Mastodon + Bluesky providers
-12. PostgreSQL popularity analytics
-13. watcher and reconciliation
-14. hardening
-
-### Frontend
-1. skeleton
-2. core router/state/api
-3. ui-contract
-4. default pages
-5. build + override system
-6. optional popularity UI
-7. hardening
-
-## Quick start
+## Building
 
 ```bash
-make tree
-make docs
-make prompts
-make package
+# Backend
+make backend-build    # compile galleryd binary
+make backend-test     # run all Go tests
+
+# Frontend
+make frontend-build   # resolve theme + esbuild bundle
+
+# Both
+make backend-build && make frontend-build
 ```
+
+## Implementation plan
+
+### Completed
+- Filesystem scanner with publication rules and config inheritance
+- Sidecar state management with stable object IDs
+- Snapshot builder (scan → domain model)
+- ACL engine (public / authenticated / restricted)
+- Auth abstraction (interfaces)
+- REST API baseline (6 endpoints: albums, assets, derivatives)
+- Image derivative generation (thumbnails, previews)
+- Discussion providers (Mastodon, Bluesky)
+- PostgreSQL popularity analytics with tern migrations
+- Filesystem watcher with debounced reconciliation
+- Frontend core (API client, router, store, session, controllers)
+- Frontend default UI (7 views, classic album grid)
+- Frontend build/override system (site layer)
+- Frontend optional popularity components
+- First hardening pass
+
+### Remaining (prompts 19–52)
+- Frontend refactors (shared utilities, error handling)
+- Production infrastructure (logging, config, auth, CSRF, rate limiting)
+- Missing API routes (discussions, access, admin, analytics)
+- Analytics wiring (event recording, retention jobs)
+- API middleware chain and route group refactor
+- App wiring and server startup
+- Derivative quality, cache eviction, asset ACLs, prev/next nav
+- Frontend tests
+- Pagination, EXIF metadata
+- Deployment configs (Dockerfile, docker-compose)
+- Final hardening and production readiness audit
+
+## For coding agents
+
+Read `CLAUDE.md` (for Claude Code) or `docs/using-this-with-an-llm-cli.md` (for other agents).
 
 ## License
 

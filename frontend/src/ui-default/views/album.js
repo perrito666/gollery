@@ -1,0 +1,51 @@
+/**
+ * AlbumPage view — displays a single album with child albums and asset grid.
+ *
+ * Consumes only the AlbumViewModel from the album controller.
+ */
+
+import { esc } from '../util/html.js';
+
+export function render(container, viewModel, ctx) {
+  if (!viewModel) {
+    container.innerHTML = '<div class="loading">Loading…</div>';
+    return;
+  }
+
+  let html = '<nav class="breadcrumb"><a href="#/">Home</a></nav>';
+
+  html += `<header class="page-header"><h1>${esc(viewModel.title)}</h1>`;
+  if (viewModel.description) {
+    html += `<p class="album-description">${esc(viewModel.description)}</p>`;
+  }
+  html += '</header>';
+
+  // Child albums
+  if (viewModel.children && viewModel.children.length > 0) {
+    html += '<section class="album-children"><h2>Sub-albums</h2><ul class="album-list">';
+    for (const child of viewModel.children) {
+      html += `<li class="album-list-item"><a href="#/albums/${esc(child.path)}" class="album-link">${esc(child.path)}</a></li>`;
+    }
+    html += '</ul></section>';
+  }
+
+  // Assets grid
+  if (viewModel.assets && viewModel.assets.length > 0) {
+    html += '<section class="asset-grid">';
+    for (const asset of viewModel.assets) {
+      html += `<a href="#/assets/${esc(asset.id)}" class="asset-thumb">` +
+        `<img src="${esc(asset.thumbnailURL)}" alt="${esc(asset.filename)}" loading="lazy">` +
+        '</a>';
+    }
+    html += '</section>';
+  }
+
+  if ((!viewModel.children || viewModel.children.length === 0) &&
+      (!viewModel.assets || viewModel.assets.length === 0)) {
+    html += '<p class="empty-state">This album is empty.</p>';
+  }
+
+  container.innerHTML = html;
+}
+
+export function destroy() {}

@@ -14,3 +14,10 @@
 # an album to test stuff
 playground
 playtheme
+
+# Compiled binaries
+backend/galleryd
+
+# Instance config (use *.example files as templates)
+gollery.json
+users.json
