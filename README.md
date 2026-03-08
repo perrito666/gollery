@@ -2,6 +2,17 @@
 
 A filesystem-first image gallery monorepo written in Go, with a lightweight customizable frontend and optional PostgreSQL-backed popularity analytics.
 
+# A Note from the partial author
+
+I had previously abandonned this project due to lack of time yet I kept wanting the functionality. 
+Over one rainy weekend I tried my hand at talking to an LLM into building what I wanted.
+
+The result is ok-ish, I would not use this if I were you, I have not yet reviewed all of the code 
+but I thought it would be an interesting exercise to publish the result as it is with all the prompting
+and feedback loop as used by the AI. I polished the architecture based on my original idea talking to 
+ChatGPT, mostly to cleanup my architecture design into wording understandable by an LLM then used the
+initial prompt to get Claude Code going.
+
 ## What this is
 
 - **Backend**: Go REST API, filesystem-first catalog, ACLs, pluggable discussion providers (Mastodon, Bluesky)
