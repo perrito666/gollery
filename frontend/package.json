@@ -10,6 +10,6 @@
     "test": "node --test test/*.test.js"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.27.3"
   }
 }
