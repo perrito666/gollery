@@ -27,6 +27,7 @@ function fakeApi(overrides = {}) {
     getMe: async () => ({ username: 'alice', groups: [], is_admin: false }),
     login: async () => ({ username: 'alice', groups: [], is_admin: false }),
     logout: async () => {},
+    fetchCSRFToken: async () => {},
     ...overrides,
   };
 }
