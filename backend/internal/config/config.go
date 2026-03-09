@@ -148,6 +148,16 @@ func LoadAlbumConfig(path string) (*AlbumConfig, error) {
 	return &cfg, nil
 }
 
+// SaveAlbumConfig writes an album config to an album.json file.
+func SaveAlbumConfig(path string, cfg *AlbumConfig) error {
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling album config: %w", err)
+	}
+	data = append(data, '\n')
+	return os.WriteFile(path, data, 0644)
+}
+
 // Validate checks an AlbumConfig for structural correctness.
 func (c *AlbumConfig) Validate() error {
 	if c.Access != nil && c.Access.View != "" {

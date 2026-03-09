@@ -86,11 +86,13 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 				return nil, fmt.Errorf("ensuring asset ID for %q in %q: %w", sa.Filename, relPath, err)
 			}
 			asset := domain.Asset{
-				ID:        assetState.ObjectID,
-				Filename:  sa.Filename,
-				AlbumPath: relPath,
-				ModTime:   sa.ModTime,
-				SizeBytes: sa.SizeBytes,
+				ID:          assetState.ObjectID,
+				Filename:    sa.Filename,
+				Title:       assetState.Title,
+				Description: assetState.Description,
+				AlbumPath:   relPath,
+				ModTime:     sa.ModTime,
+				SizeBytes:   sa.SizeBytes,
 			}
 			if assetState.AccessOverride != nil {
 				asset.Access = &domain.AccessOverride{

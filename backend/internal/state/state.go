@@ -73,6 +73,8 @@ type AlbumState struct {
 // AssetState holds the mutable editorial state for an asset.
 type AssetState struct {
 	ObjectID       string              `json:"object_id"`
+	Title          string              `json:"title,omitempty"`
+	Description    string              `json:"description,omitempty"`
 	Discussions    []DiscussionBinding `json:"discussions,omitempty"`
 	AccessOverride *AccessOverride     `json:"access_override,omitempty"`
 }

@@ -35,6 +35,22 @@ export class ApiClient {
     return `${this.baseURL}/assets/${encodeURIComponent(assetId)}/original`;
   }
 
+  async patchAssetMetadata(assetId, metadata) {
+    return this._patch(`/assets/${encodeURIComponent(assetId)}/metadata`, metadata);
+  }
+
+  async patchAlbumMetadata(albumId, metadata) {
+    return this._patch(`/albums/${encodeURIComponent(albumId)}/metadata`, metadata);
+  }
+
+  async getAssetDiscussions(assetId) {
+    return this._get(`/assets/${encodeURIComponent(assetId)}/discussion-threads`);
+  }
+
+  async getAlbumDiscussions(albumId) {
+    return this._get(`/albums/${encodeURIComponent(albumId)}/discussion-threads`);
+  }
+
   async login(username, password) {
     const result = await this._post('/auth/login', { username, password });
     // Fetch CSRF token after successful login.
@@ -75,12 +91,20 @@ export class ApiClient {
   }
 
   async _post(path, body) {
+    return this._mutate('POST', path, body);
+  }
+
+  async _patch(path, body) {
+    return this._mutate('PATCH', path, body);
+  }
+
+  async _mutate(method, path, body) {
     const headers = { 'Content-Type': 'application/json' };
     if (this._csrfToken) {
       headers['X-CSRF-Token'] = this._csrfToken;
     }
     const resp = await fetch(this.baseURL + path, {
-      method: 'POST',
+      method,
       headers,
       body: JSON.stringify(body),
     });

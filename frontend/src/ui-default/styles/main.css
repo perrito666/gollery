@@ -281,6 +281,69 @@ body {
   margin: 1rem 0;
 }
 
+/* Asset metadata */
+.asset-meta {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.asset-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.asset-description {
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+/* Edit forms (album and asset metadata) */
+.asset-edit-form,
+.album-edit-form {
+  max-width: 500px;
+  margin: 1rem auto;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.asset-edit-form label,
+.album-edit-form label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.asset-edit-form input,
+.asset-edit-form textarea,
+.album-edit-form input,
+.album-edit-form textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+.edit-actions {
+  margin-top: 0.75rem;
+}
+
+/* Mastodon share button */
+.asset-share-mastodon {
+  background: #6364ff;
+}
+
+.asset-share-mastodon:hover {
+  background: #5253dd;
+}
+
 /* Loading state */
 .loading {
   text-align: center;

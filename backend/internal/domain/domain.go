@@ -62,6 +62,12 @@ type Asset struct {
 	// Filename is the base name of the file.
 	Filename string
 
+	// Title is an optional human-readable title from sidecar state.
+	Title string
+
+	// Description is an optional description from sidecar state.
+	Description string
+
 	// AlbumPath is the relative path of the containing album.
 	AlbumPath string
 

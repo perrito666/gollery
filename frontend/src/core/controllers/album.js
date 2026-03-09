@@ -46,6 +46,8 @@ export class AlbumController {
       assets: (album.assets || []).map(a => ({
         id: a.id,
         filename: a.filename,
+        title: a.title || '',
+        description: a.description || '',
         thumbnailURL: this.api.thumbnailURL(a.id),
       })),
     };

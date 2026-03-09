@@ -65,6 +65,8 @@ func (s *Server) handleAssetByID(w http.ResponseWriter, r *http.Request) {
 	resp := AssetResponse{
 		ID:          asset.ID,
 		Filename:    asset.Filename,
+		Title:       asset.Title,
+		Description: asset.Description,
 		AlbumPath:   asset.AlbumPath,
 		AlbumID:     album.ID,
 		SizeBytes:   asset.SizeBytes,

@@ -98,19 +98,30 @@ type ChildAlbumSummary struct {
 
 // AssetSummary is a brief representation of an asset within an album listing.
 type AssetSummary struct {
-	ID       string `json:"id"`
-	Filename string `json:"filename"`
+	ID          string `json:"id"`
+	Filename    string `json:"filename"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // AssetResponse is the JSON representation of an asset.
 type AssetResponse struct {
 	ID          string  `json:"id"`
 	Filename    string  `json:"filename"`
+	Title       string  `json:"title,omitempty"`
+	Description string  `json:"description,omitempty"`
 	AlbumPath   string  `json:"album_path"`
 	AlbumID     string  `json:"album_id"`
 	SizeBytes   int64   `json:"size_bytes"`
 	PrevAssetID *string `json:"prev_asset_id"`
 	NextAssetID *string `json:"next_asset_id"`
+}
+
+// MetadataPatchRequest is the JSON body for PATCH /api/v1/assets/{id}/metadata
+// and PATCH /api/v1/albums/{id}/metadata.
+type MetadataPatchRequest struct {
+	Title       *string `json:"title,omitempty"`
+	Description *string `json:"description,omitempty"`
 }
 
 // LoginRequest is the JSON body for POST /api/v1/auth/login.
@@ -320,6 +331,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/albums/{id}/access", s.handleAlbumAccess)
 	mux.HandleFunc("GET /api/v1/assets/{id}/access", s.handleAssetAccess)
 	mux.HandleFunc("PATCH /api/v1/assets/{id}/access", s.handleAssetAccessPatch)
+
+	// Metadata editing (admin only)
+	mux.HandleFunc("PATCH /api/v1/assets/{id}/metadata", s.handleAssetMetadataPatch)
+	mux.HandleFunc("PATCH /api/v1/albums/{id}/metadata", s.handleAlbumMetadataPatch)
 
 	if s.discussions != nil {
 		mux.HandleFunc("GET /api/v1/albums/{id}/discussion-threads", s.handleAlbumDiscussionsList)
@@ -560,7 +575,7 @@ func albumToResponse(a *domain.Album, opts albumResponseOpts, offset, limit int)
 	page := visible[offset:end]
 	assets := make([]AssetSummary, len(page))
 	for i, ast := range page {
-		assets[i] = AssetSummary{ID: ast.ID, Filename: ast.Filename}
+		assets[i] = AssetSummary{ID: ast.ID, Filename: ast.Filename, Title: ast.Title, Description: ast.Description}
 	}
 
 	// Filter children the principal can view.
