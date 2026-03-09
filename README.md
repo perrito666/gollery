@@ -262,6 +262,7 @@ Access modes: `"public"` (anyone), `"authenticated"` (logged-in users), `"restri
 | [Using with an LLM CLI](docs/using-this-with-an-llm-cli.md) | Guide for AI coding agents |
 | [ADRs](docs/adrs/) | Architecture Decision Records |
 | [Developer Guide](DEVELOPER_GUIDE.md) | Detailed subsystem walkthrough for contributors |
+| [Attributions](ATTRIBUTIONS.md) | External libraries and their licenses |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
 
 ## For coding agents
