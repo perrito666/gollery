@@ -5,7 +5,7 @@ This repository is designed for development with coding agents.
 ## Current state
 
 **All 52 prompts across 12 phases are complete.** The development sequence is finished.
-See `docs/agent-workflow.md` for the full plan. Post-prompt-52 improvements: Docker setup with nginx, `gollery-users` CLI, ACL-filtered listings, login/logout UI with CSRF, nav bar, configurable users file path.
+See `docs/agent-workflow.md` for the full plan. Post-prompt-52 improvements: Docker setup with nginx, `gollery-users` CLI (user management, album init, visudo-style editing), ACL-filtered listings, login/logout UI with CSRF, nav bar, configurable users file path, asset/album title+description editing (admin only), Mastodon share button, discussion links in asset view.
 
 ## Core rules
 
@@ -31,8 +31,8 @@ Read these before changing the codebase:
 ## Backend invariants
 
 - Filesystem is the source of truth for content
-- `album.json` is declarative only — the server never writes to it
-- `.gallery/*.state.json` stores mutable editorial state
+- `album.json` is declarative only — except admin metadata PATCH which updates title/description
+- `.gallery/*.state.json` stores mutable editorial state (IDs, discussions, access overrides, asset title/description)
 - access control supports `public`, `authenticated`, and `restricted`
 - discussions are provider-pluggable via the `Provider` interface
 - popularity analytics are optional and stored in PostgreSQL

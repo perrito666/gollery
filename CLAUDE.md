@@ -21,7 +21,7 @@ Gollery is a filesystem-first image gallery monorepo with a Go backend and light
 
 The backend compiles, vets, and passes all unit tests (+ 4 integration tests) across 19 packages. The frontend bundles at ~12kb minified and passes tests across 8 suites. The server starts via `app.Run()` with signal-aware graceful shutdown, concrete auth (bcrypt + HMAC sessions), CSRF protection, rate limiting, structured logging, all API routes, pagination, EXIF extraction, and deployment configs (Dockerfile + docker-compose + nginx).
 
-Post-prompt-52 improvements include: Docker setup with nginx for frontend serving, `gollery-users` CLI tool, configurable users file path, album children returned with IDs/titles, ACL-filtered album listings, login/logout UI with CSRF support, and nav bar.
+Post-prompt-52 improvements include: Docker setup with nginx for frontend serving, `gollery-users` CLI tool (user management, album init, visudo-style editing), configurable users file path, album children returned with IDs/titles, ACL-filtered album listings, login/logout UI with CSRF support, nav bar, asset/album title and description editing (admin-only PATCH endpoints), Mastodon share button on asset view, discussion links rendering, and comprehensive in-code documentation.
 
 See `docs/agent-workflow.md` for the full 52-prompt, 12-phase plan (all complete).
 
@@ -62,8 +62,8 @@ State: files changed, tests added, any concerns, which prompt comes next.
 ## Architecture invariants — never violate these
 
 1. **Filesystem is source of truth** for content structure
-2. **`album.json` is declarative only** — server never writes to it
-3. **`.gallery/*.state.json`** stores mutable editorial state (IDs, discussion bindings)
+2. **`album.json` is declarative only** — except admin metadata PATCH which updates title/description
+3. **`.gallery/*.state.json`** stores mutable editorial state (IDs, discussion bindings, access overrides, asset title/description)
 4. **Analytics in PostgreSQL only**, never in filesystem state
 5. **Analytics are optional** — gallery works without them
 6. **Frontend layers**: core / ui-contract / ui-default / site — views never import from core directly

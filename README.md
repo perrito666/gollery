@@ -50,13 +50,13 @@ See `docs/agent-workflow.md` for the full implementation plan and future roadmap
 - **ACL engine** (public / authenticated / restricted) with asset-level overrides
 - **Concrete auth** — file-based user store, bcrypt passwords, HMAC cookie sessions
 - **CSRF protection** and **rate limiting**
-- **REST API** — albums, assets, derivatives, discussions, access, admin, analytics, pagination, prev/next navigation
+- **REST API** — albums, assets, derivatives, discussions, access, metadata editing, admin, analytics, pagination, prev/next navigation
 - **Image derivatives** — CatmullRom quality scaling, cache eviction for orphans
 - **EXIF metadata** extraction
 - **Discussion providers** — Mastodon, Bluesky (pluggable via `Provider` interface)
 - **PostgreSQL popularity analytics** — tern migrations, event recording, retention jobs
 - **Structured logging** (slog) throughout
-- **Frontend** — 7 default views, classic album grid, login state, optional popularity components
+- **Frontend** — 7 default views, classic album grid, login state, admin metadata editing, Mastodon share, discussion links, optional popularity components
 - **Frontend build/override system** — site layer for customization without touching core
 - **Deployment** — multi-stage Dockerfile, docker-compose with PostgreSQL and nginx
 - **Signal-aware graceful shutdown**
@@ -184,23 +184,26 @@ Passwords must be bcrypt-hashed (`$2a$` prefix). Use the `gollery-users` tool (s
 
 ## User management
 
-The `gollery-users` CLI tool manages `users.json` — adding/removing users, changing passwords, and setting roles. It handles bcrypt hashing automatically.
+The `gollery-users` CLI tool manages `users.json`, creates album configs, and provides validated editing. It handles bcrypt hashing automatically.
 
 ```bash
 # Build the tool
 make backend-build
 
-# Add a user
+# User management
 ./backend/gollery-users add -username alice -password secret -admin -groups admins
-
-# List users
 ./backend/gollery-users list
-
-# Change password
 ./backend/gollery-users passwd -username alice -password newpass
-
-# Remove a user
+./backend/gollery-users add-groups -username alice -groups editors,viewers
+./backend/gollery-users remove-groups -username alice -groups viewers
 ./backend/gollery-users remove -username alice
+
+# Create album.json for a new album
+./backend/gollery-users init-album -dir /path/to/album -title "My Album" -access restricted -allowed-users alice
+
+# Edit files with validation (visudo-style, uses $EDITOR)
+./backend/gollery-users edit users
+./backend/gollery-users edit album -file /path/to/album.json
 ```
 
 For the full command reference, see [docs/user-management.md](docs/user-management.md).
@@ -224,7 +227,8 @@ sample-content/
 - **Albums** are directories with an `album.json` file
 - **Assets** are image files (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`)
 - Child albums inherit parent config unless `"inherit": false` is set
-- The server never writes to content directories — all state goes to `.gallery/` sidecars and the cache directory
+- Mutable editorial state (IDs, access overrides, asset titles/descriptions) goes to `.gallery/` sidecars
+- Admin metadata editing can update `album.json` title/description via the API
 
 ### album.json
 

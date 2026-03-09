@@ -58,6 +58,7 @@ This state contains:
 - stable object IDs
 - discussion bindings
 - per-asset ACL overrides
+- per-asset title and description
 
 Generated artifacts live outside the content tree:
 - `/gallery-cache/thumbs`
@@ -399,10 +400,15 @@ Access:
 - `GET /api/v1/assets/{id}/access`
 - `PATCH /api/v1/assets/{id}/access`
 
+Metadata (admin only):
+- `PATCH /api/v1/assets/{id}/metadata` — update asset title/description (sidecar state)
+- `PATCH /api/v1/albums/{id}/metadata` — update album title/description (album.json)
+
 Auth:
 - `POST /api/v1/auth/login`
 - `GET /api/v1/auth/me`
 - `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/csrf-token`
 
 Admin:
 - `POST /api/v1/admin/reindex`

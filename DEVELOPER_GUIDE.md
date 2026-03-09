@@ -116,7 +116,7 @@ if err := cfg.Validate(); err != nil {
 Pure data types with no behavior and no dependencies on other packages:
 
 - **`Album`** — ID, path, title, description, parent/children, assets
-- **`Asset`** — ID, filename, album path, optional access override, optional metadata
+- **`Asset`** — ID, filename, title, description, album path, optional access override, optional metadata
 - **`Snapshot`** — Point-in-time view of the entire gallery (map of path → album)
 - **`Principal`** — Authenticated user (username, groups, admin flag)
 - **`DiscussionBinding`** — Link to an external discussion thread
@@ -151,9 +151,9 @@ content/
     .gallery/
       album.state.json        ← album ID + discussion bindings
       assets/
-        photo1.jpg.json       ← asset ID + discussion bindings + access override
+        photo1.jpg.json       ← asset ID + title + description + discussion bindings + access override
     photo1.jpg
-    album.json                ← declarative config (read-only)
+    album.json                ← declarative config (admin metadata PATCH can update title/description)
 ```
 
 State files are written atomically (temp file + `os.Rename`) to prevent corruption on crash.
@@ -292,13 +292,14 @@ Optional PostgreSQL-backed analytics with privacy-preserving visitor hashing. Se
 
 ### api — HTTP API Server
 
-27 routes organized into groups:
+29 routes organized into groups:
 
 | Group | Routes | Auth Required |
 |-------|--------|---------------|
 | Public content | `/albums/root`, `/albums/{id}`, `/assets/{id}`, thumbnails, previews, originals | No (ACL checked) |
 | Auth | `/auth/login`, `/auth/me`, `/auth/logout`, `/auth/csrf-token` | Varies |
 | Admin | `/admin/reindex`, `/admin/status`, `/admin/diagnostics` | Admin only |
+| Metadata | `PATCH /assets/{id}/metadata`, `PATCH /albums/{id}/metadata` | Admin only |
 | Analytics | `/albums/{id}/stats`, `/assets/{id}/stats`, popular assets, overview | Admin only |
 | Access | `/albums/{id}/access`, `/assets/{id}/access`, asset access PATCH | ACL checked |
 | Discussions | album/asset discussion list and create | Auth required for create |
@@ -334,7 +335,13 @@ galleryd --version
 
 ### cmd/gollery-users — User Management CLI
 
-Standalone tool for managing `users.json`. Supports `list`, `add`, `remove`, `passwd`, `set-admin`, `set-groups`. Handles bcrypt hashing automatically. See [docs/user-management.md](docs/user-management.md).
+Standalone tool for managing `users.json` and album configs. Commands:
+
+- **User management**: `list`, `add`, `remove`, `passwd`, `set-admin`, `set-groups`, `add-groups`, `remove-groups`
+- **Album config**: `init-album` — creates `album.json` with flags for title, access mode, allowed users/groups
+- **Validated editing**: `edit users` / `edit album -file path` — visudo-style editing using `$EDITOR` with validation before saving
+
+Handles bcrypt hashing automatically. See [docs/user-management.md](docs/user-management.md).
 
 ## Frontend Subsystem Walkthrough
 
@@ -361,7 +368,7 @@ const album = await api.getAlbum('alb_abc123');
 const url = api.thumbnailURL('ast_def456', 200);
 ```
 
-Throws typed `ApiError` with HTTP status and message on failure. Handles CSRF tokens automatically — fetches a token after login/session restore and includes it as `X-CSRF-Token` on all POST requests.
+Throws typed `ApiError` with HTTP status and message on failure. Handles CSRF tokens automatically — fetches a token after login/session restore and includes it as `X-CSRF-Token` on all POST and PATCH requests. Supports mutation methods via `_mutate(method, path, body)` used by both `_post` and `_patch`. Additional methods: `patchAssetMetadata(id, {title, description})`, `patchAlbumMetadata(id, {title, description})`, `getAssetDiscussions(id)`, `getAlbumDiscussions(id)`.
 
 ### core/state/store.js — Reactive Store
 
@@ -462,6 +469,8 @@ All views:
 - Use hash links (`#/albums/alb_abc123`) for navigation — album children include `id`, `path`, and `title`
 - Receive data exclusively through `viewModel` and `ctx`
 - `home` and `album` views include a shared nav bar (`ui-default/util/nav.js`) with login/logout controls
+- `home`, `album`, and `asset` views include admin-only edit forms for title/description (toggle show/hide)
+- `asset` view includes a Mastodon share button (prompts for instance, opens share URL) and discussion links
 
 ### Build System
 
