@@ -106,14 +106,39 @@ export function render(container, viewModel, ctx) {
       editForm.style.display = 'none';
     });
     container.querySelector('.asset-save-meta').addEventListener('click', async () => {
-      const title = container.querySelector('.edit-title').value;
-      const description = container.querySelector('.edit-description').value;
+      const titleInput = container.querySelector('.edit-title');
+      const descInput = container.querySelector('.edit-description');
+      const saveBtn = container.querySelector('.asset-save-meta');
+      const title = titleInput.value;
+      const description = descInput.value;
       const api = ctx.session.api;
+      saveBtn.textContent = 'Saving\u2026';
+      saveBtn.disabled = true;
       try {
         await api.patchAssetMetadata(viewModel.id, { title, description });
-        ctx.router.navigate(`/assets/${viewModel.id}`);
+        // Update displayed text in-place.
+        const titleEl = container.querySelector('.asset-title');
+        if (titleEl) titleEl.textContent = title || viewModel.filename;
+        const descEl = container.querySelector('.asset-description');
+        if (description) {
+          if (descEl) {
+            descEl.textContent = description;
+          } else {
+            const meta = container.querySelector('.asset-meta');
+            const p = document.createElement('p');
+            p.className = 'asset-description';
+            p.textContent = description;
+            meta.querySelector('.asset-title').after(p);
+          }
+        } else if (descEl) {
+          descEl.remove();
+        }
+        editForm.style.display = 'none';
       } catch (err) {
         alert('Failed to save: ' + (err.message || err));
+      } finally {
+        saveBtn.textContent = 'Save';
+        saveBtn.disabled = false;
       }
     });
   }

@@ -80,14 +80,39 @@ export function render(container, viewModel, ctx) {
       editForm.style.display = 'none';
     });
     container.querySelector('.album-save-meta').addEventListener('click', async () => {
-      const title = container.querySelector('.edit-title').value;
-      const description = container.querySelector('.edit-description').value;
+      const titleInput = container.querySelector('.edit-title');
+      const descInput = container.querySelector('.edit-description');
+      const saveBtn = container.querySelector('.album-save-meta');
+      const title = titleInput.value;
+      const description = descInput.value;
       const api = ctx.session.api;
+      saveBtn.textContent = 'Saving\u2026';
+      saveBtn.disabled = true;
       try {
         await api.patchAlbumMetadata(viewModel.id, { title, description });
-        ctx.router.navigate('/');
+        // Update displayed text in-place.
+        const header = container.querySelector('.page-header');
+        const h1 = header.querySelector('h1');
+        if (h1) h1.textContent = title || viewModel.title || 'Gallery';
+        const descEl = header.querySelector('.album-description');
+        if (description) {
+          if (descEl) {
+            descEl.textContent = description;
+          } else {
+            const p = document.createElement('p');
+            p.className = 'album-description';
+            p.textContent = description;
+            h1.after(p);
+          }
+        } else if (descEl) {
+          descEl.remove();
+        }
+        editForm.style.display = 'none';
       } catch (err) {
         alert('Failed to save: ' + (err.message || err));
+      } finally {
+        saveBtn.textContent = 'Save';
+        saveBtn.disabled = false;
       }
     });
   }
