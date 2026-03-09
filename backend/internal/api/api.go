@@ -345,7 +345,7 @@ func (s *Server) Handler() http.Handler {
 
 	var handler http.Handler = mux
 	if s.sessions != nil {
-		handler = s.csrfMiddleware(s.authMiddleware(mux))
+		handler = s.authMiddleware(s.mutationAuthMiddleware(s.csrfMiddleware(mux)))
 		if s.rateLimitCfg != nil {
 			ratePaths := map[string]bool{
 				"/api/v1/auth/login":  true,
@@ -367,6 +367,35 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 				r = r.WithContext(auth.WithPrincipal(r.Context(), p))
 			}
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// mutationAuthMiddleware rejects anonymous (unauthenticated) requests on
+// state-changing HTTP methods (POST, PATCH, PUT, DELETE) early, before the
+// request reaches any handler. Login is exempt because no session exists yet.
+// This is a defense-in-depth measure — individual handlers still enforce
+// admin-level authorization via requireAdmin / requireGlobalAdmin.
+func (s *Server) mutationAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Safe methods pass through.
+		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Login is exempt — there's no session yet.
+		if r.URL.Path == "/api/v1/auth/login" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		principal := auth.PrincipalFromContext(r.Context())
+		if principal == nil {
+			writeError(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }

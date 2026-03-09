@@ -491,6 +491,44 @@ func TestCSRF_GetCSRFToken(t *testing.T) {
 	}
 }
 
+func TestMutationAuth_AnonymousRejected(t *testing.T) {
+	_, handler := authServer()
+
+	// Anonymous POST (not login) should get 401, not CSRF error.
+	req := httptest.NewRequest("POST", "/api/v1/admin/reindex", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("anonymous POST status = %d, want %d", rr.Code, http.StatusUnauthorized)
+	}
+
+	// Anonymous PATCH should get 401.
+	req2 := httptest.NewRequest("PATCH", "/api/v1/assets/ast_sunset/metadata", strings.NewReader(`{"title":"x"}`))
+	rr2 := httptest.NewRecorder()
+	handler.ServeHTTP(rr2, req2)
+
+	if rr2.Code != http.StatusUnauthorized {
+		t.Errorf("anonymous PATCH status = %d, want %d", rr2.Code, http.StatusUnauthorized)
+	}
+
+	// Anonymous GET should still work (not blocked by mutation middleware).
+	rr3 := doRequest(handler, "GET", "/api/v1/albums/root", nil)
+	if rr3.Code != http.StatusOK {
+		t.Errorf("anonymous GET status = %d, want %d", rr3.Code, http.StatusOK)
+	}
+
+	// Login (POST) should be exempt from mutation auth.
+	body := `{"username":"alice","password":"pass123"}`
+	req4 := httptest.NewRequest("POST", "/api/v1/auth/login", strings.NewReader(body))
+	rr4 := httptest.NewRecorder()
+	handler.ServeHTTP(rr4, req4)
+
+	if rr4.Code != http.StatusOK {
+		t.Errorf("login status = %d, want %d", rr4.Code, http.StatusOK)
+	}
+}
+
 func TestAuthMiddleware_SetsContext(t *testing.T) {
 	_, handler := authServer()
 
