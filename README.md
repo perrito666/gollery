@@ -1,5 +1,9 @@
 # gollery
 
+[![CI](https://github.com/perrito666/gollery/actions/workflows/ci.yml/badge.svg)](https://github.com/perrito666/gollery/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/perrito666/gollery/actions/workflows/codeql.yml/badge.svg)](https://github.com/perrito666/gollery/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A filesystem-first image gallery monorepo written in Go, with a lightweight customizable frontend and optional PostgreSQL-backed popularity analytics.
 
 ## A Note from the partial author
