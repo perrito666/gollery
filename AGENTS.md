@@ -5,7 +5,7 @@ This repository is designed for development with coding agents.
 ## Current state
 
 **All 52 prompts across 12 phases are complete.** The development sequence is finished.
-See `docs/agent-workflow.md` for the full plan. Post-prompt-52 improvements: Docker setup with nginx, `gollery-users` CLI (user management, album init, visudo-style editing), ACL-filtered listings, login/logout UI with CSRF, nav bar, configurable users file path, asset/album title+description editing (admin only), Mastodon share button, discussion links in asset view.
+See `docs/agent-workflow.md` for the full plan. Post-prompt-52 improvements: Docker setup with nginx, `gollery-users` CLI (user management, album init, visudo-style editing), ACL-filtered listings, login/logout UI with CSRF, nav bar, configurable users file path, asset/album title+description editing (admin only), Mastodon share button, discussion links in asset view, link existing Mastodon threads as discussions, OpenGraph/Twitter Card meta tags for social sharing, mutation auth middleware for early anonymous rejection.
 
 ## Core rules
 

@@ -286,6 +286,24 @@ bindings, err := svc.ListBindings(albumPath, "album", "")
 
 Bindings are persisted to sidecar state files. See [Adding Discussion Providers](#adding-a-new-discussion-provider) below.
 
+You can also link an existing external thread by URL instead of creating a new one via a provider:
+
+```go
+err := svc.LinkBinding(ctx, albumPath, "album", "", "https://mastodon.social/@user/123", "mastodon", "admin")
+```
+
+This stores the binding with the provided URL directly, without calling any provider's `CreateThread`.
+
+### share — OpenGraph Social Sharing
+
+Server-rendered HTML pages with OpenGraph and Twitter Card meta tags for social media preview cards. These pages are served at `/share/assets/{id}` and `/share/albums/{id}`.
+
+Key design decisions:
+- **ACL-aware**: checks access against a nil (anonymous) principal. Restricted content shows placeholder text ("Private photo" / "Private album") without leaking titles or thumbnails
+- **Meta refresh redirect**: human visitors are immediately redirected to the SPA via `<meta http-equiv="refresh">`
+- **X-Forwarded-Proto**: the scheme is derived from this header, accepting only "https" (anything else defaults to "http") to prevent header spoofing
+- **html/template**: Go's template engine auto-escapes values in HTML and JS contexts for XSS safety
+
 ### analytics — Popularity Tracking
 
 Optional PostgreSQL-backed analytics with privacy-preserving visitor hashing. See [How Analytics Works](#how-analytics-works) below.
@@ -302,10 +320,13 @@ Optional PostgreSQL-backed analytics with privacy-preserving visitor hashing. Se
 | Metadata | `PATCH /assets/{id}/metadata`, `PATCH /albums/{id}/metadata` | Admin only |
 | Analytics | `/albums/{id}/stats`, `/assets/{id}/stats`, popular assets, overview | Admin only |
 | Access | `/albums/{id}/access`, `/assets/{id}/access`, asset access PATCH | ACL checked |
-| Discussions | album/asset discussion list and create | Auth required for create |
+| Discussions | album/asset discussion list and create (including URL linking) | Auth required for create |
+| Social sharing | `/share/assets/{id}`, `/share/albums/{id}` — server-rendered OG pages | No (ACL checked) |
 | Health | `/healthz` | No |
 
-Middleware chain (outermost first): Rate Limiting → Security Headers → CORS → Auth → CSRF → Analytics Recording → Route Handler.
+Middleware chain (outermost first): Rate Limiting → Security Headers → CORS → Auth → Mutation Auth → CSRF → Analytics Recording → Route Handler.
+
+The **Mutation Auth middleware** rejects anonymous requests on state-changing HTTP methods (POST, PATCH, PUT, DELETE) early, before reaching route handlers. The `/auth/login` endpoint is exempted.
 
 The server holds an immutable `Snapshot` protected by `sync.RWMutex`. When the watcher detects changes, it rebuilds the snapshot atomically via `SetSnapshot()`.
 
@@ -368,7 +389,9 @@ const album = await api.getAlbum('alb_abc123');
 const url = api.thumbnailURL('ast_def456', 200);
 ```
 
-Throws typed `ApiError` with HTTP status and message on failure. Handles CSRF tokens automatically — fetches a token after login/session restore and includes it as `X-CSRF-Token` on all POST and PATCH requests. Supports mutation methods via `_mutate(method, path, body)` used by both `_post` and `_patch`. Additional methods: `patchAssetMetadata(id, {title, description})`, `patchAlbumMetadata(id, {title, description})`, `getAssetDiscussions(id)`, `getAlbumDiscussions(id)`.
+Throws typed `ApiError` with HTTP status and message on failure. Handles CSRF tokens automatically — fetches a token after login/session restore and includes it as `X-CSRF-Token` on all POST and PATCH requests. Supports mutation methods via `_mutate(method, path, body)` used by both `_post` and `_patch`. Additional methods: `patchAssetMetadata(id, {title, description})`, `patchAlbumMetadata(id, {title, description})`, `getAssetDiscussions(id)`, `getAlbumDiscussions(id)`, `createAssetDiscussion(assetId, payload)`.
+
+The `createAssetDiscussion` method supports both creating new threads via a provider (`{provider, title, body}`) and linking existing threads by URL (`{url}` or `{url, provider}`).
 
 ### core/state/store.js — Reactive Store
 
@@ -470,7 +493,7 @@ All views:
 - Receive data exclusively through `viewModel` and `ctx`
 - `home` and `album` views include a shared nav bar (`ui-default/util/nav.js`) with login/logout controls
 - `home`, `album`, and `asset` views include admin-only edit forms for title/description (toggle show/hide)
-- `asset` view includes a Mastodon share button (prompts for instance, opens share URL) and discussion links
+- `asset` view includes a Mastodon share button (prompts for instance, opens share URL via `/share/assets/{id}` for OG previews), admin-only "Link Mastodon thread" form (links existing threads by URL), and discussion links
 
 ### Build System
 

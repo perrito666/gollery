@@ -391,9 +391,13 @@ Assets:
 
 Discussions:
 - `GET /api/v1/albums/{id}/discussion-threads`
-- `POST /api/v1/albums/{id}/discussion-threads`
+- `POST /api/v1/albums/{id}/discussion-threads` — create via provider, or link existing thread by URL
 - `GET /api/v1/assets/{id}/discussion-threads`
-- `POST /api/v1/assets/{id}/discussion-threads`
+- `POST /api/v1/assets/{id}/discussion-threads` — create via provider, or link existing thread by URL
+
+Social sharing (server-rendered OpenGraph pages):
+- `GET /share/assets/{id}` — OG meta tags for an asset (ACL-checked, placeholder for restricted)
+- `GET /share/albums/{id}` — OG meta tags for an album (ACL-checked, placeholder for restricted)
 
 Access:
 - `GET /api/v1/albums/{id}/access`

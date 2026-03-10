@@ -57,10 +57,11 @@ See `docs/agent-workflow.md` for the full implementation plan and future roadmap
 - **REST API** — albums, assets, derivatives, discussions, access, metadata editing, admin, analytics, pagination, prev/next navigation
 - **Image derivatives** — CatmullRom quality scaling, cache eviction for orphans
 - **EXIF metadata** extraction
-- **Discussion providers** — Mastodon, Bluesky (pluggable via `Provider` interface)
+- **Discussion providers** — Mastodon, Bluesky (pluggable via `Provider` interface); link existing threads by URL
+- **OpenGraph & Twitter Card** — `/share/` routes serve social media preview cards with titles, descriptions, and images
 - **PostgreSQL popularity analytics** — tern migrations, event recording, retention jobs
 - **Structured logging** (slog) throughout
-- **Frontend** — 7 default views, classic album grid, login state, admin metadata editing, Mastodon share, discussion links, optional popularity components
+- **Frontend** — 7 default views, classic album grid, login state, admin metadata editing, Mastodon share, discussion linking, optional popularity components
 - **Frontend build/override system** — site layer for customization without touching core
 - **Deployment** — multi-stage Dockerfile, docker-compose with PostgreSQL and nginx
 - **Signal-aware graceful shutdown**
