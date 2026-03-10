@@ -78,6 +78,28 @@ func (s *Service) CreateBinding(ctx context.Context, providerName, albumAbsPath,
 	}
 }
 
+// LinkBinding creates a discussion binding with a pre-existing URL,
+// without calling any provider. This is used when linking an already-posted
+// thread (e.g. a Mastodon post the user pasted in).
+func (s *Service) LinkBinding(providerName, url, albumAbsPath, objectType, filename, createdBy string) (*state.DiscussionBinding, error) {
+	binding := state.DiscussionBinding{
+		Provider:  providerName,
+		RemoteID:  "",
+		URL:       url,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		CreatedBy: createdBy,
+	}
+
+	switch objectType {
+	case "album":
+		return &binding, s.addAlbumBinding(albumAbsPath, binding)
+	case "asset":
+		return &binding, s.addAssetBinding(albumAbsPath, filename, binding)
+	default:
+		return nil, fmt.Errorf("unknown object type: %s", objectType)
+	}
+}
+
 // ListBindings returns the discussion bindings for an object.
 func (s *Service) ListBindings(albumAbsPath, objectType, filename string) ([]state.DiscussionBinding, error) {
 	switch objectType {

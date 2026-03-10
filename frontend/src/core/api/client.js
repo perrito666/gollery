@@ -47,6 +47,10 @@ export class ApiClient {
     return this._get(`/assets/${encodeURIComponent(assetId)}/discussion-threads`);
   }
 
+  async createAssetDiscussion(assetId, payload) {
+    return this._post(`/assets/${encodeURIComponent(assetId)}/discussion-threads`, payload);
+  }
+
   async getAlbumDiscussions(albumId) {
     return this._get(`/albums/${encodeURIComponent(albumId)}/discussion-threads`);
   }

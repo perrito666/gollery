@@ -4,11 +4,31 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path/filepath"
+	"strings"
 
 	"github.com/perrito666/gollery/backend/internal/auth"
 	"github.com/perrito666/gollery/backend/internal/state"
 )
+
+const maxDiscussionURLLen = 2048
+
+// isValidDiscussionURL returns true if rawURL is a valid HTTPS URL
+// with a non-empty host and length within bounds.
+func isValidDiscussionURL(rawURL string) bool {
+	if !strings.HasPrefix(rawURL, "https://") {
+		return false
+	}
+	if len(rawURL) > maxDiscussionURLLen {
+		return false
+	}
+	u, err := url.ParseRequestURI(rawURL)
+	if err != nil {
+		return false
+	}
+	return u.Host != ""
+}
 
 func (s *Server) handleAlbumDiscussionsList(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -70,7 +90,23 @@ func (s *Server) handleAlbumDiscussionsCreate(w http.ResponseWriter, r *http.Req
 	}
 
 	albumAbsPath := filepath.Join(s.contentRoot, album.Path)
-	binding, err := s.discussions.CreateBinding(r.Context(), req.Provider, albumAbsPath, "album", "", req.Title, req.Body, createdBy)
+
+	var binding *state.DiscussionBinding
+	var err error
+
+	if req.URL != "" {
+		if !isValidDiscussionURL(req.URL) {
+			writeError(w, http.StatusBadRequest, "invalid URL: must be a valid https:// URL")
+			return
+		}
+		provider := req.Provider
+		if provider == "" {
+			provider = "mastodon"
+		}
+		binding, err = s.discussions.LinkBinding(provider, req.URL, albumAbsPath, "album", "", createdBy)
+	} else {
+		binding, err = s.discussions.CreateBinding(r.Context(), req.Provider, albumAbsPath, "album", "", req.Title, req.Body, createdBy)
+	}
 	if err != nil {
 		slog.Error("creating album discussion", "album_id", id, "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to create discussion")
@@ -157,7 +193,23 @@ func (s *Server) handleAssetDiscussionsCreate(w http.ResponseWriter, r *http.Req
 	}
 
 	albumAbsPath := filepath.Join(s.contentRoot, asset.AlbumPath)
-	binding, err := s.discussions.CreateBinding(r.Context(), req.Provider, albumAbsPath, "asset", asset.Filename, req.Title, req.Body, createdBy)
+
+	var binding *state.DiscussionBinding
+	var err error
+
+	if req.URL != "" {
+		if !isValidDiscussionURL(req.URL) {
+			writeError(w, http.StatusBadRequest, "invalid URL: must be a valid https:// URL")
+			return
+		}
+		provider := req.Provider
+		if provider == "" {
+			provider = "mastodon"
+		}
+		binding, err = s.discussions.LinkBinding(provider, req.URL, albumAbsPath, "asset", asset.Filename, createdBy)
+	} else {
+		binding, err = s.discussions.CreateBinding(r.Context(), req.Provider, albumAbsPath, "asset", asset.Filename, req.Title, req.Body, createdBy)
+	}
 	if err != nil {
 		slog.Error("creating asset discussion", "asset_id", id, "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to create discussion")

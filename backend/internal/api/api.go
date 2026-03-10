@@ -146,10 +146,12 @@ type DiscussionBindingResponse struct {
 }
 
 // CreateDiscussionRequest is the JSON body for creating discussion threads.
+// When URL is set, the server links an existing thread instead of creating one.
 type CreateDiscussionRequest struct {
 	Provider string `json:"provider"`
 	Title    string `json:"title"`
 	Body     string `json:"body"`
+	URL      string `json:"url,omitempty"`
 }
 
 // AccessResponse is the JSON representation of effective access configuration.
@@ -335,6 +337,10 @@ func (s *Server) Handler() http.Handler {
 	// Metadata editing (admin only)
 	mux.HandleFunc("PATCH /api/v1/assets/{id}/metadata", s.handleAssetMetadataPatch)
 	mux.HandleFunc("PATCH /api/v1/albums/{id}/metadata", s.handleAlbumMetadataPatch)
+
+	// Share routes for OpenGraph meta tags (no auth required, anonymous access).
+	mux.HandleFunc("GET /share/assets/{id}", s.handleShareAsset)
+	mux.HandleFunc("GET /share/albums/{id}", s.handleShareAlbum)
 
 	if s.discussions != nil {
 		mux.HandleFunc("GET /api/v1/albums/{id}/discussion-threads", s.handleAlbumDiscussionsList)

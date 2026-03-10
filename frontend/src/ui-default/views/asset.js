@@ -79,7 +79,25 @@ export function render(container, viewModel, ctx) {
 
   // Mastodon share button
   html += ' <button class="btn asset-share-mastodon" type="button">Share on Mastodon</button>';
+
+  // Link Mastodon thread button (admin only)
+  if (isAdmin) {
+    html += ' <button class="btn asset-link-mastodon" type="button">Link Mastodon thread</button>';
+  }
   html += '</div>';
+
+  // Link Mastodon thread form (hidden by default, admin only)
+  if (isAdmin) {
+    html += '<div class="asset-link-form" style="display:none">';
+    html += '<label>Mastodon thread URL<br>';
+    html += '<input type="url" class="link-url-input" placeholder="https://mastodon.social/@user/123" style="width:100%;max-width:500px"></label>';
+    html += '<div class="link-actions" style="margin-top:0.5em">';
+    html += '<button class="btn btn-small asset-link-submit" type="button">Link</button> ';
+    html += '<button class="btn btn-small asset-link-cancel" type="button">Cancel</button>';
+    html += '</div>';
+    html += '<div class="link-error" style="color:red;margin-top:0.5em"></div>';
+    html += '</div>';
+  }
 
   // Discussion links
   html += '<div class="asset-discussions"></div>';
@@ -148,7 +166,7 @@ export function render(container, viewModel, ctx) {
   if (shareBtn) {
     shareBtn.addEventListener('click', () => {
       const shareTitle = viewModel.title || viewModel.filename;
-      const pageURL = window.location.href;
+      const pageURL = window.location.origin + '/share/assets/' + encodeURIComponent(viewModel.id);
       const text = `${shareTitle}\n\n${pageURL}`;
       // Prompt for Mastodon instance
       const instance = prompt('Enter your Mastodon instance (e.g. mastodon.social):');
@@ -156,6 +174,57 @@ export function render(container, viewModel, ctx) {
         const cleanInstance = instance.replace(/^https?:\/\//, '').replace(/\/+$/, '');
         const shareURL = `https://${encodeURIComponent(cleanInstance)}/share?text=${encodeURIComponent(text)}`;
         window.open(shareURL, '_blank', 'noopener');
+      }
+    });
+  }
+
+  // Wire up Link Mastodon thread form
+  const linkBtn = container.querySelector('.asset-link-mastodon');
+  const linkForm = container.querySelector('.asset-link-form');
+  if (linkBtn && linkForm) {
+    linkBtn.addEventListener('click', () => {
+      linkForm.style.display = linkForm.style.display === 'none' ? 'block' : 'none';
+      // Clear any previous error
+      const errEl = linkForm.querySelector('.link-error');
+      if (errEl) errEl.textContent = '';
+    });
+
+    container.querySelector('.asset-link-cancel').addEventListener('click', () => {
+      linkForm.style.display = 'none';
+    });
+
+    container.querySelector('.asset-link-submit').addEventListener('click', async () => {
+      const urlInput = linkForm.querySelector('.link-url-input');
+      const errEl = linkForm.querySelector('.link-error');
+      const submitBtn = linkForm.querySelector('.asset-link-submit');
+      const threadURL = urlInput.value.trim();
+
+      errEl.textContent = '';
+
+      if (!threadURL.startsWith('https://')) {
+        errEl.textContent = 'URL must start with https://';
+        return;
+      }
+
+      submitBtn.textContent = 'Linking\u2026';
+      submitBtn.disabled = true;
+
+      try {
+        const api = ctx.session.api;
+        await api.createAssetDiscussion(viewModel.id, { url: threadURL });
+        // Re-fetch discussions and re-render the links section.
+        linkForm.style.display = 'none';
+        urlInput.value = '';
+        const updatedDiscussions = await api.getAssetDiscussions(viewModel.id);
+        const discContainer = container.querySelector('.asset-discussions');
+        if (discContainer) {
+          renderDiscussionLinks(discContainer, updatedDiscussions);
+        }
+      } catch (err) {
+        errEl.textContent = 'Failed to link: ' + (err.message || err);
+      } finally {
+        submitBtn.textContent = 'Link';
+        submitBtn.disabled = false;
       }
     });
   }

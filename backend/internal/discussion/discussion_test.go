@@ -140,6 +140,69 @@ func TestCreateBinding_ProviderError(t *testing.T) {
 	}
 }
 
+func TestLinkBinding_Asset(t *testing.T) {
+	dir := t.TempDir()
+	state.SaveAssetState(dir, "photo.jpg", &state.AssetState{ObjectID: "ast_link"})
+
+	svc := NewService() // no providers needed for linking
+
+	binding, err := svc.LinkBinding("mastodon", "https://mastodon.social/@user/123", dir, "asset", "photo.jpg", "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if binding.Provider != "mastodon" {
+		t.Errorf("provider = %q, want mastodon", binding.Provider)
+	}
+	if binding.URL != "https://mastodon.social/@user/123" {
+		t.Errorf("url = %q", binding.URL)
+	}
+	if binding.RemoteID != "" {
+		t.Errorf("remote_id = %q, want empty", binding.RemoteID)
+	}
+	if binding.CreatedBy != "admin" {
+		t.Errorf("created_by = %q", binding.CreatedBy)
+	}
+	if binding.CreatedAt == "" {
+		t.Error("created_at should be set")
+	}
+
+	// Verify persistence.
+	bindings, err := svc.ListBindings(dir, "asset", "photo.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bindings) != 1 {
+		t.Fatalf("expected 1 binding, got %d", len(bindings))
+	}
+	if bindings[0].URL != "https://mastodon.social/@user/123" {
+		t.Errorf("persisted url = %q", bindings[0].URL)
+	}
+}
+
+func TestLinkBinding_Album(t *testing.T) {
+	dir := t.TempDir()
+	state.SaveAlbumState(dir, &state.AlbumState{ObjectID: "alb_link"})
+
+	svc := NewService()
+
+	binding, err := svc.LinkBinding("mastodon", "https://mastodon.social/@user/456", dir, "album", "", "editor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if binding.Provider != "mastodon" {
+		t.Errorf("provider = %q", binding.Provider)
+	}
+
+	bindings, err := svc.ListBindings(dir, "album", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bindings) != 1 {
+		t.Fatalf("expected 1, got %d", len(bindings))
+	}
+}
+
 func TestListBindings_Empty(t *testing.T) {
 	dir := t.TempDir()
 	svc := NewService()

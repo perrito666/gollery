@@ -188,3 +188,93 @@ func TestDiscussions_ACLCheck(t *testing.T) {
 		t.Errorf("status = %d, want 401", rr.Code)
 	}
 }
+
+func TestAssetDiscussionsCreate_WithURL(t *testing.T) {
+	_, handler := discussionServer(t)
+
+	cookie, csrf := loginAs(t, handler, "admin", "admin")
+
+	// Valid URL should create a linked binding (201) and skip provider.
+	body := `{"url":"https://mastodon.social/@user/123456"}`
+	req := httptest.NewRequest("POST", "/api/v1/assets/ast_beach/discussion-threads", strings.NewReader(body))
+	req.AddCookie(cookie)
+	req.Header.Set("X-CSRF-Token", csrf)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201; body: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp DiscussionBindingResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.URL != "https://mastodon.social/@user/123456" {
+		t.Errorf("url = %q, want the linked URL", resp.URL)
+	}
+	if resp.Provider != "mastodon" {
+		t.Errorf("provider = %q, want mastodon (default)", resp.Provider)
+	}
+	if resp.CreatedBy != "admin" {
+		t.Errorf("created_by = %q", resp.CreatedBy)
+	}
+}
+
+func TestAssetDiscussionsCreate_WithURL_ExplicitProvider(t *testing.T) {
+	_, handler := discussionServer(t)
+	cookie, csrf := loginAs(t, handler, "admin", "admin")
+
+	body := `{"url":"https://bsky.app/profile/user/post/abc","provider":"bluesky"}`
+	req := httptest.NewRequest("POST", "/api/v1/assets/ast_beach/discussion-threads", strings.NewReader(body))
+	req.AddCookie(cookie)
+	req.Header.Set("X-CSRF-Token", csrf)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", rr.Code)
+	}
+
+	var resp DiscussionBindingResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Provider != "bluesky" {
+		t.Errorf("provider = %q, want bluesky", resp.Provider)
+	}
+}
+
+func TestAssetDiscussionsCreate_WithInvalidURL(t *testing.T) {
+	_, handler := discussionServer(t)
+	cookie, csrf := loginAs(t, handler, "admin", "admin")
+
+	// http:// should be rejected
+	body := `{"url":"http://mastodon.social/@user/123456"}`
+	req := httptest.NewRequest("POST", "/api/v1/assets/ast_beach/discussion-threads", strings.NewReader(body))
+	req.AddCookie(cookie)
+	req.Header.Set("X-CSRF-Token", csrf)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("http:// status = %d, want 400", rr.Code)
+	}
+}
+
+func TestIsValidDiscussionURL(t *testing.T) {
+	tests := []struct {
+		url  string
+		want bool
+	}{
+		{"https://mastodon.social/@user/123", true},
+		{"https://example.com/thread", true},
+		{"http://mastodon.social/@user/123", false},
+		{"ftp://example.com/file", false},
+		{"not-a-url", false},
+		{"https://", false},
+		{"", false},
+		{"javascript:alert(1)", false},
+		{"data:text/html,<script>alert(1)</script>", false},
+		{"https://example.com/" + strings.Repeat("a", 2048), false},
+	}
+	for _, tt := range tests {
+		got := isValidDiscussionURL(tt.url)
+		if got != tt.want {
+			t.Errorf("isValidDiscussionURL(%q) = %v, want %v", tt.url, got, tt.want)
+		}
+	}
+}
