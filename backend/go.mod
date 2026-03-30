@@ -7,7 +7,7 @@ require (
 	github.com/jackc/tern/v2 v2.3.5
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	golang.org/x/crypto v0.49.0
-	golang.org/x/image v0.36.0
+	golang.org/x/image v0.38.0
 	golang.org/x/time v0.15.0
 )
 
