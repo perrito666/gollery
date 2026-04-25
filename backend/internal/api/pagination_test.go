@@ -136,6 +136,96 @@ func TestPagination_LimitCapped(t *testing.T) {
 	}
 }
 
+func TestPagination_DateSortOrder(t *testing.T) {
+	t1 := time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)
+	t2 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	t3 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+
+	snap := &domain.Snapshot{
+		GeneratedAt: time.Now(),
+		Albums: map[string]*domain.Album{
+			"photos": {
+				ID: "alb_photos", Path: "photos", Title: "Photos",
+				Assets: []domain.Asset{
+					{ID: "ast_c", Filename: "charlie.jpg", AlbumPath: "photos", ModTime: t1},
+					{ID: "ast_a", Filename: "alpha.jpg", AlbumPath: "photos", ModTime: t2},
+					{ID: "ast_b", Filename: "bravo.jpg", AlbumPath: "photos", ModTime: t3},
+				},
+			},
+		},
+	}
+	configs := map[string]*config.AlbumConfig{
+		"photos": {Access: &config.AccessConfig{View: "public"}, SortOrder: "date"},
+	}
+
+	srv := NewServer(snap, configs)
+	handler := srv.Handler()
+
+	rr := doRequest(handler, "GET", "/api/v1/albums/alb_photos", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+
+	var resp AlbumResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+
+	// Date order: alpha(Jan1), bravo(Jan2), charlie(Jan3)
+	if len(resp.Assets) != 3 {
+		t.Fatalf("assets len = %d, want 3", len(resp.Assets))
+	}
+	if resp.Assets[0].ID != "ast_a" {
+		t.Errorf("first asset = %s, want ast_a (oldest)", resp.Assets[0].ID)
+	}
+	if resp.Assets[1].ID != "ast_b" {
+		t.Errorf("second asset = %s, want ast_b (middle)", resp.Assets[1].ID)
+	}
+	if resp.Assets[2].ID != "ast_c" {
+		t.Errorf("third asset = %s, want ast_c (newest)", resp.Assets[2].ID)
+	}
+}
+
+func TestPagination_DefaultSortIsFilename(t *testing.T) {
+	t1 := time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)
+	t2 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	t3 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+
+	snap := &domain.Snapshot{
+		GeneratedAt: time.Now(),
+		Albums: map[string]*domain.Album{
+			"photos": {
+				ID: "alb_photos", Path: "photos", Title: "Photos",
+				Assets: []domain.Asset{
+					{ID: "ast_c", Filename: "charlie.jpg", AlbumPath: "photos", ModTime: t1},
+					{ID: "ast_a", Filename: "alpha.jpg", AlbumPath: "photos", ModTime: t2},
+					{ID: "ast_b", Filename: "bravo.jpg", AlbumPath: "photos", ModTime: t3},
+				},
+			},
+		},
+	}
+	// No sort_order set — should default to filename.
+	configs := map[string]*config.AlbumConfig{
+		"photos": {Access: &config.AccessConfig{View: "public"}},
+	}
+
+	srv := NewServer(snap, configs)
+	handler := srv.Handler()
+
+	rr := doRequest(handler, "GET", "/api/v1/albums/alb_photos", nil)
+	var resp AlbumResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+
+	// Filename order: alpha, bravo, charlie
+	if resp.Assets[0].ID != "ast_a" {
+		t.Errorf("first asset = %s, want ast_a (alpha)", resp.Assets[0].ID)
+	}
+	if resp.Assets[1].ID != "ast_b" {
+		t.Errorf("second asset = %s, want ast_b (bravo)", resp.Assets[1].ID)
+	}
+	if resp.Assets[2].ID != "ast_c" {
+		t.Errorf("third asset = %s, want ast_c (charlie)", resp.Assets[2].ID)
+	}
+}
+
 func TestPagination_RootAlbum(t *testing.T) {
 	snap, configs := paginationSnapshot()
 	srv := NewServer(snap, configs)

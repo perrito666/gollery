@@ -97,6 +97,10 @@ type AlbumConfig struct {
 
 	// Derivatives defines default derivative generation settings.
 	Derivatives *DerivativesConfig `json:"derivatives,omitempty"`
+
+	// SortOrder controls how assets are ordered when listing an album.
+	// Valid values: "filename" (default), "date" (sort by file modification time).
+	SortOrder string `json:"sort_order,omitempty"`
 }
 
 // AccessConfig defines visibility and ACL rules.
@@ -135,6 +139,13 @@ var ValidAccessModes = map[string]bool{
 	"restricted":    true,
 }
 
+// ValidSortOrders lists the allowed values for AlbumConfig.SortOrder.
+var ValidSortOrders = map[string]bool{
+	"":         true, // empty means default (filename)
+	"filename": true,
+	"date":     true,
+}
+
 // LoadAlbumConfig reads and parses an album.json file.
 func LoadAlbumConfig(path string) (*AlbumConfig, error) {
 	data, err := os.ReadFile(path)
@@ -164,6 +175,9 @@ func (c *AlbumConfig) Validate() error {
 		if !ValidAccessModes[c.Access.View] {
 			return fmt.Errorf("invalid access mode: %q", c.Access.View)
 		}
+	}
+	if !ValidSortOrders[c.SortOrder] {
+		return fmt.Errorf("invalid sort_order: %q", c.SortOrder)
 	}
 	return nil
 }
@@ -197,6 +211,9 @@ func MergeAlbumConfigs(parent, child *AlbumConfig) *AlbumConfig {
 	}
 	if child.Description != "" {
 		merged.Description = child.Description
+	}
+	if child.SortOrder != "" {
+		merged.SortOrder = child.SortOrder
 	}
 	merged.Inherit = child.Inherit
 

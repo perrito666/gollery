@@ -584,6 +584,13 @@ func albumToResponse(a *domain.Album, opts albumResponseOpts, offset, limit int)
 		}
 	}
 
+	// Sort visible assets according to album config.
+	sortOrder := ""
+	if cfg, ok := opts.configs[a.Path]; ok {
+		sortOrder = cfg.SortOrder
+	}
+	sortAssets(visible, sortOrder)
+
 	total := len(visible)
 
 	// Clamp offset.

@@ -84,6 +84,23 @@ func TestAlbumConfigValidate(t *testing.T) {
 			cfg:     AlbumConfig{Access: &AccessConfig{View: "secret"}},
 			wantErr: true,
 		},
+		{
+			name: "valid sort_order filename",
+			cfg:  AlbumConfig{SortOrder: "filename"},
+		},
+		{
+			name: "valid sort_order date",
+			cfg:  AlbumConfig{SortOrder: "date"},
+		},
+		{
+			name: "valid sort_order empty",
+			cfg:  AlbumConfig{SortOrder: ""},
+		},
+		{
+			name:    "invalid sort_order",
+			cfg:     AlbumConfig{SortOrder: "random"},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -175,6 +192,23 @@ func TestMergeAlbumConfigs_InheritFalse(t *testing.T) {
 	}
 	if merged.Description != "" {
 		t.Errorf("description = %q, want empty (inherit=false)", merged.Description)
+	}
+}
+
+func TestMergeAlbumConfigs_SortOrderInheritance(t *testing.T) {
+	parent := &AlbumConfig{SortOrder: "date"}
+	child := &AlbumConfig{Title: "Child"}
+
+	merged := MergeAlbumConfigs(parent, child)
+	if merged.SortOrder != "date" {
+		t.Errorf("sort_order = %q, want %q (inherited from parent)", merged.SortOrder, "date")
+	}
+
+	// Child overrides parent.
+	child2 := &AlbumConfig{SortOrder: "filename"}
+	merged2 := MergeAlbumConfigs(parent, child2)
+	if merged2.SortOrder != "filename" {
+		t.Errorf("sort_order = %q, want %q (overridden by child)", merged2.SortOrder, "filename")
 	}
 }
 
