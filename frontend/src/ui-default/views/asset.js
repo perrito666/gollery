@@ -8,6 +8,7 @@
 import { esc } from '../util/html.js';
 import { renderNav } from '../util/nav.js';
 import { renderDiscussionLinks } from '../components/discussion-links.js';
+import { renderMapButton, setupMapButton, destroyMapButton } from '../components/map-button.js';
 
 export function render(container, viewModel, ctx) {
   if (!viewModel) {
@@ -77,9 +78,9 @@ export function render(container, viewModel, ctx) {
   html += '<div class="asset-actions">';
   html += `<a href="${esc(viewModel.originalURL)}" class="btn" target="_blank" rel="noopener">Download original</a>`;
 
-  // Map link
-  if (viewModel.geoURI) {
-    html += ` <a href="${esc(viewModel.geoURI)}" class="btn">View on map</a>`;
+  // Map link (split button with provider dropdown)
+  if (viewModel.latitude != null && viewModel.longitude != null) {
+    html += ' ' + renderMapButton(viewModel.latitude, viewModel.longitude);
   }
 
   // Mastodon share button
@@ -111,6 +112,9 @@ export function render(container, viewModel, ctx) {
 
   container.innerHTML = html;
   nav.setup(container);
+
+  // Wire up map split button
+  setupMapButton(container);
 
   // Render discussion links
   const discEl = container.querySelector('.asset-discussions');
@@ -235,4 +239,6 @@ export function render(container, viewModel, ctx) {
   }
 }
 
-export function destroy() {}
+export function destroy(container) {
+  if (container) destroyMapButton(container);
+}

@@ -22,6 +22,17 @@ func formatGeoURI(asset *domain.Asset) *string {
 	return &uri
 }
 
+// assetLatLon returns the latitude or longitude of an asset, or nil.
+func assetLatLon(asset *domain.Asset, isLat bool) *float64 {
+	if asset.Metadata == nil {
+		return nil
+	}
+	if isLat {
+		return asset.Metadata.Latitude
+	}
+	return asset.Metadata.Longitude
+}
+
 // sortAssets sorts a slice of assets in place according to sortOrder.
 // Valid values are "date" (sort by ModTime ascending) and anything else
 // (including "" and "filename") which sorts by filename ascending.
@@ -101,6 +112,8 @@ func (s *Server) handleAssetByID(w http.ResponseWriter, r *http.Request) {
 		PrevAssetID: prev,
 		NextAssetID: next,
 		GeoURI:      formatGeoURI(asset),
+		Latitude:    assetLatLon(asset, true),
+		Longitude:   assetLatLon(asset, false),
 	}
 	writeJSON(w, http.StatusOK, resp)
 }

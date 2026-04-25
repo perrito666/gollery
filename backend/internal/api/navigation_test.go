@@ -240,6 +240,12 @@ func TestAsset_GeoURI_Present(t *testing.T) {
 	if *resp.GeoURI != "geo:48.856600,2.352200" {
 		t.Errorf("geo_uri = %q, want %q", *resp.GeoURI, "geo:48.856600,2.352200")
 	}
+	if resp.Latitude == nil || *resp.Latitude != 48.8566 {
+		t.Errorf("latitude = %v, want 48.8566", resp.Latitude)
+	}
+	if resp.Longitude == nil || *resp.Longitude != 2.3522 {
+		t.Errorf("longitude = %v, want 2.3522", resp.Longitude)
+	}
 }
 
 func TestAsset_GeoURI_Absent(t *testing.T) {

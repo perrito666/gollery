@@ -36,6 +36,8 @@ export class AssetController {
         prevAssetId: asset.prev_asset_id || null,
         nextAssetId: asset.next_asset_id || null,
         geoURI: asset.geo_uri || null,
+        latitude: asset.latitude ?? null,
+        longitude: asset.longitude ?? null,
         discussions,
       };
       this.store.set({ currentView: 'asset', viewModel, loading: false });
