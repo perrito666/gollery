@@ -37,13 +37,18 @@ package index
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"time"
 
 	"github.com/perrito666/gollery/backend/internal/domain"
 	"github.com/perrito666/gollery/backend/internal/fswalk"
+	"github.com/perrito666/gollery/backend/internal/geo"
+	"github.com/perrito666/gollery/backend/internal/meta"
 	"github.com/perrito666/gollery/backend/internal/state"
 )
+
+const gpxTolerance = 30 * time.Second
 
 // BuildSnapshot combines scanner output with sidecar state to produce
 // a point-in-time Snapshot with stable IDs and album hierarchy.
@@ -78,7 +83,25 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 			}
 		}
 
-		// Build assets with stable IDs.
+		// Parse GPX files for this album (once, shared across assets).
+		var gpxPoints []geo.Trackpoint
+		if len(scanned.GPXFiles) > 0 {
+			pts, err := geo.ParseGPXFiles(scanned.GPXFiles)
+			if err != nil {
+				slog.Warn("failed to parse GPX files", "album", relPath, "error", err)
+			} else {
+				gpxPoints = pts
+			}
+		}
+
+		// Album-level fallback coordinates from config.
+		var albumLat, albumLon *float64
+		if scanned.Config != nil {
+			albumLat = scanned.Config.Latitude
+			albumLon = scanned.Config.Longitude
+		}
+
+		// Build assets with stable IDs and resolve coordinates.
 		assets := make([]domain.Asset, 0, len(scanned.Assets))
 		for _, sa := range scanned.Assets {
 			assetState, _, err := state.EnsureAssetID(absPath, sa.Filename)
@@ -101,6 +124,26 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 					AllowedGroups: assetState.AccessOverride.AllowedGroups,
 				}
 			}
+
+			// Resolve GPS coordinates.
+			resolvedLat, resolvedLon := resolveCoords(
+				absPath, sa.Filename, assetState, gpxPoints,
+			)
+
+			if resolvedLat != nil && resolvedLon != nil {
+				asset.Metadata = &domain.ImageMetadata{
+					Latitude:  resolvedLat,
+					Longitude: resolvedLon,
+				}
+			} else if albumLat != nil && albumLon != nil {
+				// Album-level fallback (not persisted to asset sidecar).
+				lat, lon := *albumLat, *albumLon
+				asset.Metadata = &domain.ImageMetadata{
+					Latitude:  &lat,
+					Longitude: &lon,
+				}
+			}
+
 			assets = append(assets, asset)
 		}
 
@@ -117,4 +160,57 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 	}
 
 	return snap, nil
+}
+
+// resolveCoords attempts to resolve GPS coordinates for an asset.
+// It checks: cached sidecar → EXIF → GPX matching.
+// If coordinates are found (or all sources exhausted), it persists
+// the result to the sidecar and sets GeoResolved to avoid re-processing.
+func resolveCoords(
+	albumAbsPath, filename string,
+	assetState *state.AssetState,
+	gpxPoints []geo.Trackpoint,
+) (lat, lon *float64) {
+	// Already resolved — use cached result (may be nil if no coords found).
+	if assetState.GeoResolved {
+		return assetState.Latitude, assetState.Longitude
+	}
+
+	// Try EXIF extraction.
+	filePath := filepath.Join(albumAbsPath, filename)
+	exifMeta, err := meta.Extract(filePath)
+	if err != nil {
+		slog.Warn("EXIF extraction failed", "file", filename, "error", err)
+	}
+
+	if exifMeta != nil && exifMeta.Latitude != nil && exifMeta.Longitude != nil {
+		assetState.Latitude = exifMeta.Latitude
+		assetState.Longitude = exifMeta.Longitude
+		assetState.GeoResolved = true
+		if err := state.SaveAssetState(albumAbsPath, filename, assetState); err != nil {
+			slog.Warn("failed to save asset state with EXIF coords", "file", filename, "error", err)
+		}
+		return assetState.Latitude, assetState.Longitude
+	}
+
+	// Try GPX matching (requires DateTaken from EXIF).
+	if exifMeta != nil && exifMeta.DateTaken != nil && len(gpxPoints) > 0 {
+		glat, glon, ok := geo.MatchNearest(gpxPoints, *exifMeta.DateTaken, gpxTolerance)
+		if ok {
+			assetState.Latitude = &glat
+			assetState.Longitude = &glon
+			assetState.GeoResolved = true
+			if err := state.SaveAssetState(albumAbsPath, filename, assetState); err != nil {
+				slog.Warn("failed to save asset state with GPX coords", "file", filename, "error", err)
+			}
+			return assetState.Latitude, assetState.Longitude
+		}
+	}
+
+	// No coordinates found — mark as resolved to avoid re-processing.
+	assetState.GeoResolved = true
+	if err := state.SaveAssetState(albumAbsPath, filename, assetState); err != nil {
+		slog.Warn("failed to save asset state (no coords)", "file", filename, "error", err)
+	}
+	return nil, nil
 }

@@ -212,6 +212,37 @@ func TestMergeAlbumConfigs_SortOrderInheritance(t *testing.T) {
 	}
 }
 
+func float64Ptr(v float64) *float64 { return &v }
+
+func TestMergeAlbumConfigs_LatLonInheritance(t *testing.T) {
+	parent := &AlbumConfig{
+		Latitude:  float64Ptr(48.8566),
+		Longitude: float64Ptr(2.3522),
+	}
+	child := &AlbumConfig{Title: "Child"}
+
+	merged := MergeAlbumConfigs(parent, child)
+	if merged.Latitude == nil || *merged.Latitude != 48.8566 {
+		t.Errorf("latitude = %v, want 48.8566 (inherited)", merged.Latitude)
+	}
+	if merged.Longitude == nil || *merged.Longitude != 2.3522 {
+		t.Errorf("longitude = %v, want 2.3522 (inherited)", merged.Longitude)
+	}
+
+	// Child overrides parent.
+	child2 := &AlbumConfig{
+		Latitude:  float64Ptr(40.7128),
+		Longitude: float64Ptr(-74.0060),
+	}
+	merged2 := MergeAlbumConfigs(parent, child2)
+	if *merged2.Latitude != 40.7128 {
+		t.Errorf("latitude = %v, want 40.7128 (overridden)", *merged2.Latitude)
+	}
+	if *merged2.Longitude != -74.0060 {
+		t.Errorf("longitude = %v, want -74.0060 (overridden)", *merged2.Longitude)
+	}
+}
+
 func TestMergeAlbumConfigs_AnalyticsMerge(t *testing.T) {
 	parent := &AlbumConfig{
 		Analytics: &AlbumAnalyticsConfig{

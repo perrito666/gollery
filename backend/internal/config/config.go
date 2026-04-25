@@ -101,6 +101,14 @@ type AlbumConfig struct {
 	// SortOrder controls how assets are ordered when listing an album.
 	// Valid values: "filename" (default), "date" (sort by file modification time).
 	SortOrder string `json:"sort_order,omitempty"`
+
+	// Latitude is the album-level default latitude for assets without
+	// individual GPS coordinates. Used as a fallback only.
+	Latitude *float64 `json:"latitude,omitempty"`
+
+	// Longitude is the album-level default longitude for assets without
+	// individual GPS coordinates. Used as a fallback only.
+	Longitude *float64 `json:"longitude,omitempty"`
 }
 
 // AccessConfig defines visibility and ACL rules.
@@ -214,6 +222,12 @@ func MergeAlbumConfigs(parent, child *AlbumConfig) *AlbumConfig {
 	}
 	if child.SortOrder != "" {
 		merged.SortOrder = child.SortOrder
+	}
+	if child.Latitude != nil {
+		merged.Latitude = child.Latitude
+	}
+	if child.Longitude != nil {
+		merged.Longitude = child.Longitude
 	}
 	merged.Inherit = child.Inherit
 

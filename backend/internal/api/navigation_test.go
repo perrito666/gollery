@@ -202,3 +202,60 @@ func TestAsset_PrevNext_SingleAsset(t *testing.T) {
 		t.Errorf("next = %v, want nil", *resp.NextAssetID)
 	}
 }
+
+func TestAsset_GeoURI_Present(t *testing.T) {
+	lat, lon := 48.8566, 2.3522
+	snap := &domain.Snapshot{
+		GeneratedAt: time.Now(),
+		Albums: map[string]*domain.Album{
+			"geo": {
+				ID: "alb_geo", Path: "geo", Title: "Geo",
+				Assets: []domain.Asset{
+					{
+						ID: "ast_geo", Filename: "paris.jpg", AlbumPath: "geo",
+						Metadata: &domain.ImageMetadata{Latitude: &lat, Longitude: &lon},
+					},
+				},
+			},
+		},
+	}
+	configs := map[string]*config.AlbumConfig{
+		"geo": {Title: "Geo", Access: &config.AccessConfig{View: "public"}},
+	}
+
+	srv := NewServer(snap, configs)
+	handler := srv.Handler()
+
+	rr := doRequest(handler, "GET", "/api/v1/assets/ast_geo", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+
+	var resp AssetResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+
+	if resp.GeoURI == nil {
+		t.Fatal("expected geo_uri to be present")
+	}
+	if *resp.GeoURI != "geo:48.856600,2.352200" {
+		t.Errorf("geo_uri = %q, want %q", *resp.GeoURI, "geo:48.856600,2.352200")
+	}
+}
+
+func TestAsset_GeoURI_Absent(t *testing.T) {
+	snap, configs := navSnapshot()
+	srv := NewServer(snap, configs)
+	handler := srv.Handler()
+
+	rr := doRequest(handler, "GET", "/api/v1/assets/ast_a", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+
+	var resp AssetResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+
+	if resp.GeoURI != nil {
+		t.Errorf("expected no geo_uri, got %q", *resp.GeoURI)
+	}
+}
