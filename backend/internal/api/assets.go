@@ -11,19 +11,32 @@ import (
 	"github.com/perrito666/gollery/backend/internal/domain"
 )
 
+// sortAssets sorts a slice of assets in place according to sortOrder.
+// Valid values are "date" (sort by ModTime ascending) and anything else
+// (including "" and "filename") which sorts by filename ascending.
+func sortAssets(assets []domain.Asset, sortOrder string) {
+	switch sortOrder {
+	case "date":
+		sort.Slice(assets, func(i, j int) bool {
+			return assets[i].ModTime.Before(assets[j].ModTime)
+		})
+	default:
+		sort.Slice(assets, func(i, j int) bool {
+			return assets[i].Filename < assets[j].Filename
+		})
+	}
+}
+
 // findAdjacentAssets returns the previous and next asset IDs relative to
-// assetID within the album's asset list, sorted by filename.
-func findAdjacentAssets(album *domain.Album, assetID string) (prev, next *string) {
+// assetID within the album's asset list, sorted according to sortOrder.
+func findAdjacentAssets(album *domain.Album, assetID string, sortOrder string) (prev, next *string) {
 	if len(album.Assets) <= 1 {
 		return nil, nil
 	}
 
-	// Build sorted list of assets by filename.
 	sorted := make([]domain.Asset, len(album.Assets))
 	copy(sorted, album.Assets)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Filename < sorted[j].Filename
-	})
+	sortAssets(sorted, sortOrder)
 
 	for i, a := range sorted {
 		if a.ID == assetID {
@@ -61,7 +74,11 @@ func (s *Server) handleAssetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prev, next := findAdjacentAssets(album, asset.ID)
+	sortOrder := ""
+	if cfg, ok := s.configs[asset.AlbumPath]; ok {
+		sortOrder = cfg.SortOrder
+	}
+	prev, next := findAdjacentAssets(album, asset.ID, sortOrder)
 	resp := AssetResponse{
 		ID:          asset.ID,
 		Filename:    asset.Filename,
