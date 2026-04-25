@@ -5,9 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/perrito666/gollery/backend/internal/config"
 	"github.com/perrito666/gollery/backend/internal/fswalk"
+	"github.com/perrito666/gollery/backend/internal/geo"
+	"github.com/perrito666/gollery/backend/internal/state"
 )
 
 func writeAlbumJSON(t *testing.T, dir, content string) {
@@ -145,6 +148,125 @@ func TestBuildSnapshot_EmptyScan(t *testing.T) {
 	}
 	if snap.GeneratedAt.IsZero() {
 		t.Error("GeneratedAt should be set")
+	}
+}
+
+func float64Ptr(v float64) *float64 { return &v }
+
+func TestResolveCoords_CachedSidecar(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "photo.jpg"))
+
+	as := &state.AssetState{
+		ObjectID:    "ast_test",
+		Latitude:    float64Ptr(48.8566),
+		Longitude:   float64Ptr(2.3522),
+		GeoResolved: true,
+	}
+
+	lat, lon := resolveCoords(dir, "photo.jpg", as, nil)
+	if lat == nil || *lat != 48.8566 {
+		t.Errorf("lat = %v, want 48.8566", lat)
+	}
+	if lon == nil || *lon != 2.3522 {
+		t.Errorf("lon = %v, want 2.3522", lon)
+	}
+}
+
+func TestResolveCoords_GeoResolvedNoCoords(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "photo.jpg"))
+
+	as := &state.AssetState{
+		ObjectID:    "ast_test",
+		GeoResolved: true,
+	}
+
+	lat, lon := resolveCoords(dir, "photo.jpg", as, nil)
+	if lat != nil || lon != nil {
+		t.Errorf("expected nil coords for resolved-no-coords, got (%v, %v)", lat, lon)
+	}
+}
+
+func TestResolveCoords_NoExifMarksResolved(t *testing.T) {
+	dir := t.TempDir()
+	// Write a non-JPEG file (no EXIF possible).
+	writeFile(t, filepath.Join(dir, "photo.jpg"))
+
+	as := &state.AssetState{ObjectID: "ast_test"}
+
+	lat, lon := resolveCoords(dir, "photo.jpg", as, nil)
+	if lat != nil || lon != nil {
+		t.Errorf("expected nil coords, got (%v, %v)", lat, lon)
+	}
+	if !as.GeoResolved {
+		t.Error("GeoResolved should be true after exhausting sources")
+	}
+}
+
+func TestResolveCoords_GPXMatch(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "photo.jpg"))
+
+	// Simulate: EXIF gave us a DateTaken but no GPS.
+	// We can't easily produce a real EXIF file in tests, so test
+	// resolveCoords with GPX points directly by pre-populating
+	// the asset state as if EXIF extraction yielded nothing.
+	// Instead, test the GPX matching function directly.
+	pts := []geo.Trackpoint{
+		{Lat: 40.0, Lon: -74.0, Time: time.Date(2024, 6, 15, 10, 0, 0, 0, time.UTC)},
+		{Lat: 42.0, Lon: -72.0, Time: time.Date(2024, 6, 15, 10, 2, 0, 0, time.UTC)},
+	}
+
+	query := time.Date(2024, 6, 15, 10, 1, 0, 0, time.UTC)
+	lat, lon, ok := geo.MatchNearest(pts, query, 30*time.Second)
+	if !ok {
+		t.Fatal("expected GPX match")
+	}
+	if lat < 40.9 || lat > 41.1 {
+		t.Errorf("lat = %f, want ~41.0", lat)
+	}
+	if lon < -73.1 || lon > -72.9 {
+		t.Errorf("lon = %f, want ~-73.0", lon)
+	}
+}
+
+func TestBuildSnapshot_AlbumFallbackCoords(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "photo.jpg"))
+
+	lat := 48.8566
+	lon := 2.3522
+	scan := &fswalk.ScanResult{
+		Albums: map[string]*fswalk.ScannedAlbum{
+			"": {
+				Path: "",
+				Config: &config.AlbumConfig{
+					Title:     "Paris",
+					Latitude:  &lat,
+					Longitude: &lon,
+				},
+				Assets: []fswalk.ScannedAsset{
+					{Filename: "photo.jpg", ModTime: time.Now(), SizeBytes: 4},
+				},
+			},
+		},
+	}
+
+	snap, err := BuildSnapshot(root, scan)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	asset := snap.Albums[""].Assets[0]
+	if asset.Metadata == nil {
+		t.Fatal("expected metadata with album fallback coords")
+	}
+	if asset.Metadata.Latitude == nil || *asset.Metadata.Latitude != 48.8566 {
+		t.Errorf("lat = %v, want 48.8566", asset.Metadata.Latitude)
+	}
+	if asset.Metadata.Longitude == nil || *asset.Metadata.Longitude != 2.3522 {
+		t.Errorf("lon = %v, want 2.3522", asset.Metadata.Longitude)
 	}
 }
 

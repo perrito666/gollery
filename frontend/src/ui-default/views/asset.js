@@ -77,6 +77,11 @@ export function render(container, viewModel, ctx) {
   html += '<div class="asset-actions">';
   html += `<a href="${esc(viewModel.originalURL)}" class="btn" target="_blank" rel="noopener">Download original</a>`;
 
+  // Map link
+  if (viewModel.geoURI) {
+    html += ` <a href="${esc(viewModel.geoURI)}" class="btn">View on map</a>`;
+  }
+
   // Mastodon share button
   html += ' <button class="btn asset-share-mastodon" type="button">Share on Mastodon</button>';
 

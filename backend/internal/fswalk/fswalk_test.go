@@ -216,6 +216,33 @@ func TestScan_ChildPaths(t *testing.T) {
 	}
 }
 
+func TestScan_GPXFilesDiscovered(t *testing.T) {
+	root := t.TempDir()
+	writeAlbumJSON(t, root, `{"title": "Root"}`)
+	writeFile(t, filepath.Join(root, "photo.jpg"))
+	writeFile(t, filepath.Join(root, "track.gpx"))
+	writeFile(t, filepath.Join(root, "route.gpx"))
+
+	result, err := Scan(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	album := result.Albums[""]
+	if len(album.Assets) != 1 {
+		t.Errorf("expected 1 asset, got %d", len(album.Assets))
+	}
+	if len(album.GPXFiles) != 2 {
+		t.Errorf("expected 2 GPX files, got %d: %v", len(album.GPXFiles), album.GPXFiles)
+	}
+	// GPX files should be absolute paths.
+	for _, f := range album.GPXFiles {
+		if !filepath.IsAbs(f) {
+			t.Errorf("GPX path should be absolute: %s", f)
+		}
+	}
+}
+
 func TestScan_ImageExtensions(t *testing.T) {
 	root := t.TempDir()
 	writeAlbumJSON(t, root, `{"title": "Root"}`)

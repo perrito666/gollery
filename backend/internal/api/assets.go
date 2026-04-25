@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -10,6 +11,16 @@ import (
 	"github.com/perrito666/gollery/backend/internal/derive"
 	"github.com/perrito666/gollery/backend/internal/domain"
 )
+
+// formatGeoURI returns a geo: URI string for the given coordinates,
+// or nil if the asset has no location.
+func formatGeoURI(asset *domain.Asset) *string {
+	if asset.Metadata == nil || asset.Metadata.Latitude == nil || asset.Metadata.Longitude == nil {
+		return nil
+	}
+	uri := fmt.Sprintf("geo:%f,%f", *asset.Metadata.Latitude, *asset.Metadata.Longitude)
+	return &uri
+}
 
 // sortAssets sorts a slice of assets in place according to sortOrder.
 // Valid values are "date" (sort by ModTime ascending) and anything else
@@ -89,6 +100,7 @@ func (s *Server) handleAssetByID(w http.ResponseWriter, r *http.Request) {
 		SizeBytes:   asset.SizeBytes,
 		PrevAssetID: prev,
 		NextAssetID: next,
+		GeoURI:      formatGeoURI(asset),
 	}
 	writeJSON(w, http.StatusOK, resp)
 }

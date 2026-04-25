@@ -77,6 +77,9 @@ type AssetState struct {
 	Description    string              `json:"description,omitempty"`
 	Discussions    []DiscussionBinding `json:"discussions,omitempty"`
 	AccessOverride *AccessOverride     `json:"access_override,omitempty"`
+	Latitude       *float64            `json:"latitude,omitempty"`
+	Longitude      *float64            `json:"longitude,omitempty"`
+	GeoResolved    bool                `json:"geo_resolved,omitempty"`
 }
 
 // AccessOverride stores per-asset ACL overrides in sidecar state.

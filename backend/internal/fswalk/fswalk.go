@@ -79,6 +79,9 @@ type ScannedAlbum struct {
 
 	// ChildPaths lists relative paths of direct child albums.
 	ChildPaths []string
+
+	// GPXFiles lists absolute paths to .gpx files found in this directory.
+	GPXFiles []string
 }
 
 // ScanResult holds the output of a content tree scan.
@@ -176,16 +179,17 @@ func Scan(contentRoot string) (*ScanResult, error) {
 
 		resolved[relPath] = cfg
 
-		// Scan for image assets in this directory.
-		assets, assetErr := scanAssets(absPath)
-		if assetErr != nil {
-			result.Errors = append(result.Errors, ScanError{Path: relPath, Err: assetErr})
+		// Scan for image assets and GPX files in this directory.
+		assets, gpxFiles, scanErr := scanDir(absPath)
+		if scanErr != nil {
+			result.Errors = append(result.Errors, ScanError{Path: relPath, Err: scanErr})
 		}
 
 		album := &ScannedAlbum{
-			Path:   relPath,
-			Config: cfg,
-			Assets: assets,
+			Path:     relPath,
+			Config:   cfg,
+			Assets:   assets,
+			GPXFiles: gpxFiles,
 		}
 		result.Albums[relPath] = album
 
@@ -209,19 +213,24 @@ func Scan(contentRoot string) (*ScanResult, error) {
 	return result, nil
 }
 
-// scanAssets reads a directory and returns recognized image files.
-func scanAssets(dirPath string) ([]ScannedAsset, error) {
+// scanDir reads a directory and returns recognized image files and GPX file paths.
+func scanDir(dirPath string) ([]ScannedAsset, []string, error) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var assets []ScannedAsset
+	var gpxFiles []string
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
 		ext := strings.ToLower(filepath.Ext(e.Name()))
+		if ext == ".gpx" {
+			gpxFiles = append(gpxFiles, filepath.Join(dirPath, e.Name()))
+			continue
+		}
 		if !ImageExtensions[ext] {
 			continue
 		}
@@ -235,5 +244,5 @@ func scanAssets(dirPath string) ([]ScannedAsset, error) {
 			SizeBytes: info.Size(),
 		})
 	}
-	return assets, nil
+	return assets, gpxFiles, nil
 }

@@ -102,6 +102,7 @@ type AssetSummary struct {
 	Filename    string `json:"filename"`
 	Title       string `json:"title,omitempty"`
 	Description string `json:"description,omitempty"`
+	HasLocation bool   `json:"has_location,omitempty"`
 }
 
 // AssetResponse is the JSON representation of an asset.
@@ -115,6 +116,7 @@ type AssetResponse struct {
 	SizeBytes   int64   `json:"size_bytes"`
 	PrevAssetID *string `json:"prev_asset_id"`
 	NextAssetID *string `json:"next_asset_id"`
+	GeoURI      *string `json:"geo_uri,omitempty"`
 }
 
 // MetadataPatchRequest is the JSON body for PATCH /api/v1/assets/{id}/metadata
@@ -617,7 +619,11 @@ func albumToResponse(a *domain.Album, opts albumResponseOpts, offset, limit int)
 	page := visible[offset:end]
 	assets := make([]AssetSummary, len(page))
 	for i, ast := range page {
-		assets[i] = AssetSummary{ID: ast.ID, Filename: ast.Filename, Title: ast.Title, Description: ast.Description}
+		summary := AssetSummary{ID: ast.ID, Filename: ast.Filename, Title: ast.Title, Description: ast.Description}
+		if ast.Metadata != nil && ast.Metadata.Latitude != nil && ast.Metadata.Longitude != nil {
+			summary.HasLocation = true
+		}
+		assets[i] = summary
 	}
 
 	// Filter children the principal can view.
