@@ -344,6 +344,53 @@ body {
   background: #5253dd;
 }
 
+/* Map split button */
+.map-split-btn {
+  display: inline-flex;
+  position: relative;
+  vertical-align: middle;
+}
+
+.map-btn-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.map-btn-dropdown {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.5rem 0.5rem;
+  min-width: 2rem;
+  font-size: 0.75rem;
+}
+
+.map-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 2px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  min-width: 160px;
+}
+
+.map-dropdown-item {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  color: #333;
+  text-decoration: none;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.map-dropdown-item:hover {
+  background: #f0f0f0;
+}
+
 /* Loading state */
 .loading {
   text-align: center;

@@ -107,16 +107,18 @@ type AssetSummary struct {
 
 // AssetResponse is the JSON representation of an asset.
 type AssetResponse struct {
-	ID          string  `json:"id"`
-	Filename    string  `json:"filename"`
-	Title       string  `json:"title,omitempty"`
-	Description string  `json:"description,omitempty"`
-	AlbumPath   string  `json:"album_path"`
-	AlbumID     string  `json:"album_id"`
-	SizeBytes   int64   `json:"size_bytes"`
-	PrevAssetID *string `json:"prev_asset_id"`
-	NextAssetID *string `json:"next_asset_id"`
-	GeoURI      *string `json:"geo_uri,omitempty"`
+	ID          string   `json:"id"`
+	Filename    string   `json:"filename"`
+	Title       string   `json:"title,omitempty"`
+	Description string   `json:"description,omitempty"`
+	AlbumPath   string   `json:"album_path"`
+	AlbumID     string   `json:"album_id"`
+	SizeBytes   int64    `json:"size_bytes"`
+	PrevAssetID *string  `json:"prev_asset_id"`
+	NextAssetID *string  `json:"next_asset_id"`
+	GeoURI      *string  `json:"geo_uri,omitempty"`
+	Latitude    *float64 `json:"latitude,omitempty"`
+	Longitude   *float64 `json:"longitude,omitempty"`
 }
 
 // MetadataPatchRequest is the JSON body for PATCH /api/v1/assets/{id}/metadata
