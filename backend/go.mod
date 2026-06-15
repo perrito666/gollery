@@ -7,7 +7,7 @@ require (
 	github.com/jackc/tern/v2 v2.3.5
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	golang.org/x/crypto v0.49.0
-	golang.org/x/image v0.36.0
+	golang.org/x/image v0.42.0
 	golang.org/x/time v0.15.0
 )
 
@@ -25,6 +25,6 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 )
