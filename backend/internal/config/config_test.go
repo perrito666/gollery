@@ -93,6 +93,10 @@ func TestAlbumConfigValidate(t *testing.T) {
 			cfg:  AlbumConfig{SortOrder: "date"},
 		},
 		{
+			name: "valid sort_order date_taken",
+			cfg:  AlbumConfig{SortOrder: "date_taken"},
+		},
+		{
 			name: "valid sort_order empty",
 			cfg:  AlbumConfig{SortOrder: ""},
 		},

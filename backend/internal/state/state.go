@@ -53,6 +53,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const (
@@ -80,6 +81,13 @@ type AssetState struct {
 	Latitude       *float64            `json:"latitude,omitempty"`
 	Longitude      *float64            `json:"longitude,omitempty"`
 	GeoResolved    bool                `json:"geo_resolved,omitempty"`
+	// DateTaken caches the EXIF capture timestamp so the "date_taken"
+	// sort order does not have to re-read image files on every re-index.
+	DateTaken *time.Time `json:"date_taken,omitempty"`
+	// MetaResolved marks that non-geo EXIF metadata (currently DateTaken)
+	// has been extracted. Kept separate from GeoResolved so that upgrading
+	// installs re-extract EXIF once to populate DateTaken.
+	MetaResolved bool `json:"meta_resolved,omitempty"`
 }
 
 // AccessOverride stores per-asset ACL overrides in sidecar state.

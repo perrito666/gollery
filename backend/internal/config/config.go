@@ -99,7 +99,12 @@ type AlbumConfig struct {
 	Derivatives *DerivativesConfig `json:"derivatives,omitempty"`
 
 	// SortOrder controls how assets are ordered when listing an album.
-	// Valid values: "filename" (default), "date" (sort by file modification time).
+	// Valid values:
+	//   - "filename" (default): case-sensitive filename ascending
+	//   - "date":               file modification time ascending
+	//   - "date_taken":         EXIF DateTimeOriginal ascending, with
+	//                          ModTime as fallback for assets that lack
+	//                          an EXIF timestamp
 	SortOrder string `json:"sort_order,omitempty"`
 
 	// Latitude is the album-level default latitude for assets without
@@ -149,9 +154,10 @@ var ValidAccessModes = map[string]bool{
 
 // ValidSortOrders lists the allowed values for AlbumConfig.SortOrder.
 var ValidSortOrders = map[string]bool{
-	"":         true, // empty means default (filename)
-	"filename": true,
-	"date":     true,
+	"":           true, // empty means default (filename)
+	"filename":   true,
+	"date":       true,
+	"date_taken": true,
 }
 
 // LoadAlbumConfig reads and parses an album.json file.
