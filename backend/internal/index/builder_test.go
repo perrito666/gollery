@@ -188,6 +188,48 @@ func TestResolveCoords_GeoResolvedNoCoords(t *testing.T) {
 	}
 }
 
+func TestResolveCoords_CachedDateTakenSurfaces(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "photo.jpg"))
+
+	shot := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
+	as := &state.AssetState{
+		ObjectID:     "ast_test",
+		GeoResolved:  true,
+		MetaResolved: true,
+		DateTaken:    &shot,
+	}
+
+	// Both flags true — should not touch the file. DateTaken must survive.
+	resolveCoords(dir, "photo.jpg", as, nil)
+	if as.DateTaken == nil || !as.DateTaken.Equal(shot) {
+		t.Errorf("cached DateTaken = %v, want %v", as.DateTaken, shot)
+	}
+}
+
+func TestResolveCoords_MetaResolutionOnUpgrade(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "photo.jpg"))
+
+	// Simulate an install that predates DateTaken caching: GeoResolved
+	// is already set, MetaResolved is false. resolveCoords must attempt
+	// EXIF once, mark MetaResolved, and preserve existing coords.
+	as := &state.AssetState{
+		ObjectID:    "ast_test",
+		GeoResolved: true,
+		Latitude:    float64Ptr(48.8566),
+		Longitude:   float64Ptr(2.3522),
+	}
+
+	lat, lon := resolveCoords(dir, "photo.jpg", as, nil)
+	if lat == nil || *lat != 48.8566 || lon == nil || *lon != 2.3522 {
+		t.Errorf("coords lost during meta resolve: (%v, %v)", lat, lon)
+	}
+	if !as.MetaResolved {
+		t.Error("MetaResolved should be true after upgrade path")
+	}
+}
+
 func TestResolveCoords_NoExifMarksResolved(t *testing.T) {
 	dir := t.TempDir()
 	// Write a non-JPEG file (no EXIF possible).
@@ -201,6 +243,9 @@ func TestResolveCoords_NoExifMarksResolved(t *testing.T) {
 	}
 	if !as.GeoResolved {
 		t.Error("GeoResolved should be true after exhausting sources")
+	}
+	if !as.MetaResolved {
+		t.Error("MetaResolved should be true after exhausting sources")
 	}
 }
 

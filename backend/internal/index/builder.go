@@ -125,22 +125,29 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 				}
 			}
 
-			// Resolve GPS coordinates.
+			// Resolve GPS coordinates and cached EXIF metadata (DateTaken).
 			resolvedLat, resolvedLon := resolveCoords(
 				absPath, sa.Filename, assetState, trackPoints,
 			)
 
-			if resolvedLat != nil && resolvedLon != nil {
+			switch {
+			case resolvedLat != nil && resolvedLon != nil:
 				asset.Metadata = &domain.ImageMetadata{
 					Latitude:  resolvedLat,
 					Longitude: resolvedLon,
+					DateTaken: assetState.DateTaken,
 				}
-			} else if albumLat != nil && albumLon != nil {
+			case albumLat != nil && albumLon != nil:
 				// Album-level fallback (not persisted to asset sidecar).
 				lat, lon := *albumLat, *albumLon
 				asset.Metadata = &domain.ImageMetadata{
 					Latitude:  &lat,
 					Longitude: &lon,
+					DateTaken: assetState.DateTaken,
+				}
+			case assetState.DateTaken != nil:
+				asset.Metadata = &domain.ImageMetadata{
+					DateTaken: assetState.DateTaken,
 				}
 			}
 
@@ -164,23 +171,40 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 
 // resolveCoords attempts to resolve GPS coordinates for an asset.
 // It checks: cached sidecar → EXIF → track-log matching (GPX/TCX).
-// If coordinates are found (or all sources exhausted), it persists
-// the result to the sidecar and sets GeoResolved to avoid re-processing.
+// It also caches the EXIF DateTaken when it reads the file, so the
+// "date_taken" sort order does not have to re-open images on later builds.
+// If either coords or metadata still need resolving, EXIF is read once;
+// results are persisted with GeoResolved and MetaResolved set true.
 func resolveCoords(
 	albumAbsPath, filename string,
 	assetState *state.AssetState,
 	trackPoints []geo.Trackpoint,
 ) (lat, lon *float64) {
-	// Already resolved — use cached result (may be nil if no coords found).
-	if assetState.GeoResolved {
+	// Both resolved already — use cached values (may be nil).
+	if assetState.GeoResolved && assetState.MetaResolved {
 		return assetState.Latitude, assetState.Longitude
 	}
 
-	// Try EXIF extraction.
+	// Try EXIF extraction. This yields both coords (if present) and DateTaken.
 	filePath := filepath.Join(albumAbsPath, filename)
 	exifMeta, err := meta.Extract(filePath)
 	if err != nil {
 		slog.Warn("EXIF extraction failed", "file", filename, "error", err)
+	}
+
+	// Cache DateTaken regardless of whether coords resolve.
+	if exifMeta != nil && exifMeta.DateTaken != nil {
+		assetState.DateTaken = exifMeta.DateTaken
+	}
+	assetState.MetaResolved = true
+
+	// If coords were already cached earlier, don't recompute — just persist
+	// the newly resolved metadata and return the existing coords.
+	if assetState.GeoResolved {
+		if err := state.SaveAssetState(albumAbsPath, filename, assetState); err != nil {
+			slog.Warn("failed to save asset state with EXIF metadata", "file", filename, "error", err)
+		}
+		return assetState.Latitude, assetState.Longitude
 	}
 
 	if exifMeta != nil && exifMeta.Latitude != nil && exifMeta.Longitude != nil {

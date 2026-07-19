@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/perrito666/gollery/backend/internal/derive"
 	"github.com/perrito666/gollery/backend/internal/domain"
@@ -34,19 +35,41 @@ func assetLatLon(asset *domain.Asset, isLat bool) *float64 {
 }
 
 // sortAssets sorts a slice of assets in place according to sortOrder.
-// Valid values are "date" (sort by ModTime ascending) and anything else
-// (including "" and "filename") which sorts by filename ascending.
+// Valid values:
+//   - "date":       ModTime ascending
+//   - "date_taken": EXIF DateTaken ascending, with ModTime as fallback for
+//                   assets that lack an EXIF timestamp; ties break by filename
+//   - anything else (including "" and "filename"): filename ascending
 func sortAssets(assets []domain.Asset, sortOrder string) {
 	switch sortOrder {
 	case "date":
 		sort.Slice(assets, func(i, j int) bool {
 			return assets[i].ModTime.Before(assets[j].ModTime)
 		})
+	case "date_taken":
+		sort.Slice(assets, func(i, j int) bool {
+			ti := assetSortTime(&assets[i])
+			tj := assetSortTime(&assets[j])
+			if ti.Equal(tj) {
+				return assets[i].Filename < assets[j].Filename
+			}
+			return ti.Before(tj)
+		})
 	default:
 		sort.Slice(assets, func(i, j int) bool {
 			return assets[i].Filename < assets[j].Filename
 		})
 	}
+}
+
+// assetSortTime returns the timestamp used to order an asset under the
+// "date_taken" sort order: EXIF DateTaken when available, otherwise the
+// filesystem ModTime.
+func assetSortTime(a *domain.Asset) time.Time {
+	if a.Metadata != nil && a.Metadata.DateTaken != nil {
+		return *a.Metadata.DateTaken
+	}
+	return a.ModTime
 }
 
 // findAdjacentAssets returns the previous and next asset IDs relative to
