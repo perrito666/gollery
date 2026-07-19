@@ -141,6 +141,13 @@ body {
   object-fit: cover;
 }
 
+.asset-grid-sentinel {
+  text-align: center;
+  padding: 1.5rem 0;
+  color: #888;
+  font-size: 0.9rem;
+}
+
 /* Asset viewer */
 .asset-viewer {
   max-width: 900px;

@@ -57,7 +57,10 @@ export function init(registry, container, siteConfig = {}) {
       activeRenderer.destroy();
     }
     activeRenderer = renderer;
-    renderer.render(container, state.viewModel, { store, router, session, permissions, features, popularity });
+    renderer.render(container, state.viewModel, {
+      store, router, session, permissions, features, popularity,
+      albumController: albumCtrl,
+    });
   });
 
   // Routes

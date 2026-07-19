@@ -15,8 +15,21 @@ export class ApiClient {
     return this._get('/albums/root');
   }
 
-  async getAlbum(id) {
-    return this._get(`/albums/${encodeURIComponent(id)}`);
+  /**
+   * Fetch an album by ID. Optional pagination via {offset, limit}.
+   * The backend caps limit at 500 and defaults to 100 when unspecified.
+   */
+  async getAlbum(id, opts = {}) {
+    const params = new URLSearchParams();
+    if (Number.isFinite(opts.offset) && opts.offset > 0) {
+      params.set('offset', String(opts.offset));
+    }
+    if (Number.isFinite(opts.limit) && opts.limit > 0) {
+      params.set('limit', String(opts.limit));
+    }
+    const query = params.toString();
+    const suffix = query ? `?${query}` : '';
+    return this._get(`/albums/${encodeURIComponent(id)}${suffix}`);
   }
 
   async getAsset(id) {
