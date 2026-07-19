@@ -8,7 +8,17 @@
 import { esc } from '../util/html.js';
 import { renderNav } from '../util/nav.js';
 
+// Page size for lazy-loaded asset chunks. Matches the backend default.
+const PAGE_SIZE = 100;
+
+// Holds cleanup for the current render so destroy() can tear down the
+// infinite-scroll observer without leaking listeners across views.
+let cleanup = null;
+
 export function render(container, viewModel, ctx) {
+  // Tear down any previous render's observer before we replace innerHTML.
+  destroy();
+
   if (!viewModel) {
     container.innerHTML = '<div class="loading">Loading\u2026</div>';
     return;
@@ -55,11 +65,13 @@ export function render(container, viewModel, ctx) {
   if (viewModel.assets && viewModel.assets.length > 0) {
     html += '<section class="asset-grid">';
     for (const asset of viewModel.assets) {
-      html += `<a href="#/assets/${esc(asset.id)}" class="asset-thumb">` +
-        `<img src="${esc(asset.thumbnailURL)}" alt="${esc(asset.title || asset.filename)}" loading="lazy">` +
-        '</a>';
+      html += assetThumbHTML(asset);
     }
     html += '</section>';
+    const total = viewModel.totalAssets || viewModel.assets.length;
+    if (viewModel.assets.length < total) {
+      html += '<div class="asset-grid-sentinel" aria-hidden="true">Loading more…</div>';
+    }
   }
 
   if ((!viewModel.children || viewModel.children.length === 0) &&
@@ -69,6 +81,8 @@ export function render(container, viewModel, ctx) {
 
   container.innerHTML = html;
   nav.setup(container);
+
+  setupInfiniteScroll(container, viewModel, ctx);
 
   // Wire up edit form
   const editBtn = container.querySelector('.album-edit-meta');
@@ -119,4 +133,100 @@ export function render(container, viewModel, ctx) {
   }
 }
 
-export function destroy() {}
+export function destroy() {
+  if (cleanup) {
+    cleanup();
+    cleanup = null;
+  }
+}
+
+function assetThumbHTML(asset) {
+  return `<a href="#/assets/${esc(asset.id)}" class="asset-thumb">` +
+    `<img src="${esc(asset.thumbnailURL)}" alt="${esc(asset.title || asset.filename)}" loading="lazy">` +
+    '</a>';
+}
+
+// setupInfiniteScroll wires an IntersectionObserver on the sentinel below
+// the asset grid. Each time it becomes visible, the next page of assets
+// is fetched and appended to the grid in place — no full re-render, so
+// scroll position and DOM state are preserved.
+function setupInfiniteScroll(container, viewModel, ctx) {
+  const grid = container.querySelector('.asset-grid');
+  const sentinel = container.querySelector('.asset-grid-sentinel');
+  if (!grid || !sentinel) return;
+
+  const total = viewModel.totalAssets || viewModel.assets.length;
+  let loaded = viewModel.assets.length;
+  let loading = false;
+
+  if (loaded >= total) {
+    sentinel.remove();
+    return;
+  }
+
+  // If no controller is available (e.g. a stripped ctx from a site override),
+  // there is no way to fetch more — drop the sentinel silently.
+  if (!ctx || !ctx.albumController || typeof ctx.albumController.loadAssetsPage !== 'function') {
+    sentinel.remove();
+    return;
+  }
+
+  // Fallback for environments without IntersectionObserver (older browsers,
+  // jsdom): fetch pages eagerly so no assets are hidden.
+  if (typeof IntersectionObserver === 'undefined') {
+    void fetchAll();
+    return;
+  }
+
+  const observer = new IntersectionObserver(async (entries) => {
+    if (!entries.some(e => e.isIntersecting) || loading) return;
+    await fetchNext();
+  }, { rootMargin: '400px 0px' });
+
+  observer.observe(sentinel);
+
+  cleanup = () => {
+    observer.disconnect();
+  };
+
+  async function fetchNext() {
+    if (loading || loaded >= total) return;
+    loading = true;
+    try {
+      const { assets, total: newTotal } = await ctx.albumController.loadAssetsPage(
+        viewModel.id,
+        { offset: loaded, limit: PAGE_SIZE }
+      );
+      appendAssets(assets);
+      loaded += assets.length;
+      // Server may have returned a larger total than we knew; respect it.
+      const cap = Math.max(newTotal, total);
+      if (loaded >= cap || assets.length === 0) {
+        observer.disconnect();
+        sentinel.remove();
+      }
+    } catch (err) {
+      // Leave the sentinel visible so the user (or a retry) can try again.
+      sentinel.textContent = 'Failed to load more. Scroll to retry.';
+      console.warn('gollery: failed to load more assets', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function fetchAll() {
+    while (loaded < total) {
+      // eslint-disable-next-line no-await-in-loop
+      await fetchNext();
+    }
+  }
+
+  function appendAssets(assets) {
+    if (!assets || assets.length === 0) return;
+    const frag = document.createDocumentFragment();
+    const tmp = document.createElement('div');
+    tmp.innerHTML = assets.map(assetThumbHTML).join('');
+    while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+    grid.appendChild(frag);
+  }
+}

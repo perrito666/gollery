@@ -89,6 +89,46 @@ describe('AlbumController', () => {
     assert.equal(store.get().viewModel.id, 'alb_vac');
   });
 
+  it('showAlbum surfaces total_assets on view model', async () => {
+    const store = new Store();
+    const api = fakeApi({
+      getAlbum: async (id) => ({
+        id, title: 'Big', path: 'big', children: [],
+        assets: [{ id: 'ast_1', filename: 'a.jpg' }],
+        total_assets: 350,
+      }),
+    });
+    const ctrl = new AlbumController(api, store);
+    await ctrl.showAlbum('alb_big');
+    assert.equal(store.get().viewModel.totalAssets, 350);
+    assert.equal(store.get().viewModel.assets.length, 1);
+  });
+
+  it('loadAssetsPage forwards offset/limit and maps assets', async () => {
+    const calls = [];
+    const api = fakeApi({
+      getAlbum: async (id, opts) => {
+        calls.push({ id, opts });
+        return {
+          id, title: 'X', path: '', children: [],
+          assets: [
+            { id: 'ast_100', filename: '100.jpg' },
+            { id: 'ast_101', filename: '101.jpg' },
+          ],
+          total_assets: 250,
+        };
+      },
+    });
+    const ctrl = new AlbumController(api, new Store());
+    const result = await ctrl.loadAssetsPage('alb_big', { offset: 100, limit: 100 });
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].opts, { offset: 100, limit: 100 });
+    assert.equal(result.total, 250);
+    assert.equal(result.assets.length, 2);
+    assert.equal(result.assets[0].id, 'ast_100');
+    assert.equal(result.assets[0].thumbnailURL, '/thumb/ast_100');
+  });
+
   it('showRoot handles 401', async () => {
     const store = new Store();
     const api = fakeApi({
