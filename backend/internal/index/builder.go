@@ -48,7 +48,7 @@ import (
 	"github.com/perrito666/gollery/backend/internal/state"
 )
 
-const gpxTolerance = 30 * time.Second
+const trackTolerance = 30 * time.Second
 
 // BuildSnapshot combines scanner output with sidecar state to produce
 // a point-in-time Snapshot with stable IDs and album hierarchy.
@@ -83,14 +83,14 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 			}
 		}
 
-		// Parse GPX files for this album (once, shared across assets).
-		var gpxPoints []geo.Trackpoint
-		if len(scanned.GPXFiles) > 0 {
-			pts, err := geo.ParseGPXFiles(scanned.GPXFiles)
+		// Parse GPS track files (GPX + TCX) for this album (once, shared across assets).
+		var trackPoints []geo.Trackpoint
+		if len(scanned.TrackFiles) > 0 {
+			pts, err := geo.ParseTrackFiles(scanned.TrackFiles)
 			if err != nil {
-				slog.Warn("failed to parse GPX files", "album", relPath, "error", err)
+				slog.Warn("failed to parse GPS track files", "album", relPath, "error", err)
 			} else {
-				gpxPoints = pts
+				trackPoints = pts
 			}
 		}
 
@@ -127,7 +127,7 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 
 			// Resolve GPS coordinates.
 			resolvedLat, resolvedLon := resolveCoords(
-				absPath, sa.Filename, assetState, gpxPoints,
+				absPath, sa.Filename, assetState, trackPoints,
 			)
 
 			if resolvedLat != nil && resolvedLon != nil {
@@ -163,13 +163,13 @@ func BuildSnapshot(contentRoot string, scan *fswalk.ScanResult) (*domain.Snapsho
 }
 
 // resolveCoords attempts to resolve GPS coordinates for an asset.
-// It checks: cached sidecar → EXIF → GPX matching.
+// It checks: cached sidecar → EXIF → track-log matching (GPX/TCX).
 // If coordinates are found (or all sources exhausted), it persists
 // the result to the sidecar and sets GeoResolved to avoid re-processing.
 func resolveCoords(
 	albumAbsPath, filename string,
 	assetState *state.AssetState,
-	gpxPoints []geo.Trackpoint,
+	trackPoints []geo.Trackpoint,
 ) (lat, lon *float64) {
 	// Already resolved — use cached result (may be nil if no coords found).
 	if assetState.GeoResolved {
@@ -193,15 +193,15 @@ func resolveCoords(
 		return assetState.Latitude, assetState.Longitude
 	}
 
-	// Try GPX matching (requires DateTaken from EXIF).
-	if exifMeta != nil && exifMeta.DateTaken != nil && len(gpxPoints) > 0 {
-		glat, glon, ok := geo.MatchNearest(gpxPoints, *exifMeta.DateTaken, gpxTolerance)
+	// Try track-log matching (GPX/TCX; requires DateTaken from EXIF).
+	if exifMeta != nil && exifMeta.DateTaken != nil && len(trackPoints) > 0 {
+		glat, glon, ok := geo.MatchNearest(trackPoints, *exifMeta.DateTaken, trackTolerance)
 		if ok {
 			assetState.Latitude = &glat
 			assetState.Longitude = &glon
 			assetState.GeoResolved = true
 			if err := state.SaveAssetState(albumAbsPath, filename, assetState); err != nil {
-				slog.Warn("failed to save asset state with GPX coords", "file", filename, "error", err)
+				slog.Warn("failed to save asset state with track coords", "file", filename, "error", err)
 			}
 			return assetState.Latitude, assetState.Longitude
 		}
