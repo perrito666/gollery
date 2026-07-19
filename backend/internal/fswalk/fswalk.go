@@ -80,8 +80,10 @@ type ScannedAlbum struct {
 	// ChildPaths lists relative paths of direct child albums.
 	ChildPaths []string
 
-	// GPXFiles lists absolute paths to .gpx files found in this directory.
-	GPXFiles []string
+	// TrackFiles lists absolute paths to GPS track logs (.gpx and .tcx)
+	// found in this directory. Both formats yield timestamped trackpoints
+	// used for photo geotagging.
+	TrackFiles []string
 }
 
 // ScanResult holds the output of a content tree scan.
@@ -179,17 +181,17 @@ func Scan(contentRoot string) (*ScanResult, error) {
 
 		resolved[relPath] = cfg
 
-		// Scan for image assets and GPX files in this directory.
-		assets, gpxFiles, scanErr := scanDir(absPath)
+		// Scan for image assets and GPS track files in this directory.
+		assets, trackFiles, scanErr := scanDir(absPath)
 		if scanErr != nil {
 			result.Errors = append(result.Errors, ScanError{Path: relPath, Err: scanErr})
 		}
 
 		album := &ScannedAlbum{
-			Path:     relPath,
-			Config:   cfg,
-			Assets:   assets,
-			GPXFiles: gpxFiles,
+			Path:       relPath,
+			Config:     cfg,
+			Assets:     assets,
+			TrackFiles: trackFiles,
 		}
 		result.Albums[relPath] = album
 
@@ -213,7 +215,8 @@ func Scan(contentRoot string) (*ScanResult, error) {
 	return result, nil
 }
 
-// scanDir reads a directory and returns recognized image files and GPX file paths.
+// scanDir reads a directory and returns recognized image files along with
+// absolute paths to GPS track logs (.gpx and .tcx).
 func scanDir(dirPath string) ([]ScannedAsset, []string, error) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -221,14 +224,14 @@ func scanDir(dirPath string) ([]ScannedAsset, []string, error) {
 	}
 
 	var assets []ScannedAsset
-	var gpxFiles []string
+	var trackFiles []string
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
 		ext := strings.ToLower(filepath.Ext(e.Name()))
-		if ext == ".gpx" {
-			gpxFiles = append(gpxFiles, filepath.Join(dirPath, e.Name()))
+		if ext == ".gpx" || ext == ".tcx" {
+			trackFiles = append(trackFiles, filepath.Join(dirPath, e.Name()))
 			continue
 		}
 		if !ImageExtensions[ext] {
@@ -244,5 +247,5 @@ func scanDir(dirPath string) ([]ScannedAsset, []string, error) {
 			SizeBytes: info.Size(),
 		})
 	}
-	return assets, gpxFiles, nil
+	return assets, trackFiles, nil
 }
