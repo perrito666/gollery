@@ -3,10 +3,10 @@ module github.com/perrito666/gollery/backend
 go 1.25.0
 
 require (
-	github.com/jackc/pgx/v5 v5.8.0
-	github.com/jackc/tern/v2 v2.3.5
+	github.com/jackc/pgx/v5 v5.9.2
+	github.com/jackc/tern/v2 v2.4.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
-	golang.org/x/crypto v0.49.0
+	golang.org/x/crypto v0.50.0
 	golang.org/x/image v0.36.0
 	golang.org/x/time v0.15.0
 )
@@ -26,5 +26,5 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 )
