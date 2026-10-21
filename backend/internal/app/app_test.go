@@ -135,3 +135,52 @@ func createTestServer(t *testing.T, contentRoot string) *api.Server {
 	}
 	return api.NewServer(snap, extractConfigs(scan))
 }
+
+func TestAnalyticsIPSalt_ConfiguredSaltWins(t *testing.T) {
+	cfg := &config.ServerConfig{
+		Auth:      &config.AuthConfig{SessionSecret: "session-secret"},
+		Analytics: &config.GlobalAnalyticsConfig{IPSalt: "explicit-salt"},
+	}
+
+	if got := analyticsIPSalt(cfg); got != "explicit-salt" {
+		t.Errorf("salt = %q, want the configured ip_salt", got)
+	}
+}
+
+func TestAnalyticsIPSalt_DerivedFromSessionSecret(t *testing.T) {
+	cfg := &config.ServerConfig{
+		Auth: &config.AuthConfig{SessionSecret: "session-secret"},
+	}
+
+	got := analyticsIPSalt(cfg)
+	if got == "" {
+		t.Fatal("salt is empty")
+	}
+	// Stable across calls, so visitor hashes survive a restart.
+	if second := analyticsIPSalt(cfg); second != got {
+		t.Errorf("salt changed between calls: %q then %q", got, second)
+	}
+	// Derived, not the secret itself.
+	if got == "session-secret" {
+		t.Error("salt is the session secret verbatim")
+	}
+
+	other := analyticsIPSalt(&config.ServerConfig{
+		Auth: &config.AuthConfig{SessionSecret: "another-secret"},
+	})
+	if other == got {
+		t.Error("different session secrets produced the same salt")
+	}
+}
+
+func TestAnalyticsIPSalt_RandomWithoutSecret(t *testing.T) {
+	cfg := &config.ServerConfig{}
+
+	first := analyticsIPSalt(cfg)
+	if first == "" {
+		t.Fatal("salt is empty")
+	}
+	if second := analyticsIPSalt(cfg); second == first {
+		t.Error("fallback salt is not random")
+	}
+}

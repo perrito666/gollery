@@ -219,6 +219,9 @@ type Server struct {
 	// analytics store (optional)
 	analyticsStore AnalyticsStore
 
+	// analytics recorder (optional, nil means view events are not recorded)
+	analyticsRecorder *AnalyticsRecorder
+
 	// admin support
 	reindexFunc    func() error
 	startTime      time.Time
@@ -260,6 +263,12 @@ func (s *Server) SetDiscussions(svc *discussion.Service) {
 // SetAnalytics configures the analytics store.
 func (s *Server) SetAnalytics(store AnalyticsStore) {
 	s.analyticsStore = store
+}
+
+// SetAnalyticsRecorder configures the recorder that persists view events.
+// A nil recorder leaves recording disabled.
+func (s *Server) SetAnalyticsRecorder(rec *AnalyticsRecorder) {
+	s.analyticsRecorder = rec
 }
 
 // SetAdmin configures admin-only capabilities.

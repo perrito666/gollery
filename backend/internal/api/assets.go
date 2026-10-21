@@ -100,45 +100,57 @@ func findAdjacentAssets(album *domain.Album, assetID string, sortOrder string) (
 func (s *Server) handleAssetByID(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	var served bool
+	var albumPath, assetID string
 
-	asset, ok := s.assetsByID[id]
-	if !ok {
-		writeError(w, http.StatusNotFound, "asset not found")
-		return
-	}
+	func() {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
 
-	album, ok := s.snapshot.Albums[asset.AlbumPath]
-	if !ok {
-		writeError(w, http.StatusNotFound, "containing album not found")
-		return
-	}
+		asset, ok := s.assetsByID[id]
+		if !ok {
+			writeError(w, http.StatusNotFound, "asset not found")
+			return
+		}
 
-	if !s.checkAssetAccess(w, r, asset, album) {
-		return
-	}
+		album, ok := s.snapshot.Albums[asset.AlbumPath]
+		if !ok {
+			writeError(w, http.StatusNotFound, "containing album not found")
+			return
+		}
 
-	sortOrder := ""
-	if cfg, ok := s.configs[asset.AlbumPath]; ok {
-		sortOrder = cfg.SortOrder
+		if !s.checkAssetAccess(w, r, asset, album) {
+			return
+		}
+
+		sortOrder := ""
+		if cfg, ok := s.configs[asset.AlbumPath]; ok {
+			sortOrder = cfg.SortOrder
+		}
+		prev, next := findAdjacentAssets(album, asset.ID, sortOrder)
+		resp := AssetResponse{
+			ID:          asset.ID,
+			Filename:    asset.Filename,
+			Title:       asset.Title,
+			Description: asset.Description,
+			AlbumPath:   asset.AlbumPath,
+			AlbumID:     album.ID,
+			SizeBytes:   asset.SizeBytes,
+			PrevAssetID: prev,
+			NextAssetID: next,
+			GeoURI:      formatGeoURI(asset),
+			Latitude:    assetLatLon(asset, true),
+			Longitude:   assetLatLon(asset, false),
+		}
+		writeJSON(w, http.StatusOK, resp)
+		served, albumPath, assetID = true, asset.AlbumPath, asset.ID
+	}()
+
+	// Opening a photo hits this endpoint and then the preview; the recorder's
+	// dedup window collapses the pair into one asset view per visitor.
+	if served {
+		s.recordAssetView(r, albumPath, assetID)
 	}
-	prev, next := findAdjacentAssets(album, asset.ID, sortOrder)
-	resp := AssetResponse{
-		ID:          asset.ID,
-		Filename:    asset.Filename,
-		Title:       asset.Title,
-		Description: asset.Description,
-		AlbumPath:   asset.AlbumPath,
-		AlbumID:     album.ID,
-		SizeBytes:   asset.SizeBytes,
-		PrevAssetID: prev,
-		NextAssetID: next,
-		GeoURI:      formatGeoURI(asset),
-		Latitude:    assetLatLon(asset, true),
-		Longitude:   assetLatLon(asset, false),
-	}
-	writeJSON(w, http.StatusOK, resp)
 }
 
 // resolveAssetForDerivative is a shared helper for derivative endpoints.
@@ -197,44 +209,66 @@ func (s *Server) handleAssetThumbnail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAssetPreview(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	var served bool
+	var albumPath, assetID string
 
-	if s.cacheLayout == nil {
-		writeError(w, http.StatusServiceUnavailable, "derivatives not configured")
-		return
-	}
+	func() {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
 
-	asset, srcPath, ok := s.resolveAssetForDerivative(w, r)
-	if !ok {
-		return
-	}
-
-	size := 1600
-	if qs := r.URL.Query().Get("size"); qs != "" {
-		if parsed, err := strconv.Atoi(qs); err == nil && parsed > 0 && parsed <= 4000 {
-			size = parsed
+		if s.cacheLayout == nil {
+			writeError(w, http.StatusServiceUnavailable, "derivatives not configured")
+			return
 		}
-	}
 
-	outPath, err := derive.GeneratePreview(s.cacheLayout, asset.ID, srcPath, size)
-	if err != nil {
-		slog.Error("preview generation failed", "asset_id", asset.ID, "error", err)
-		writeError(w, http.StatusInternalServerError, "preview generation failed")
-		return
-	}
+		asset, srcPath, ok := s.resolveAssetForDerivative(w, r)
+		if !ok {
+			return
+		}
 
-	http.ServeFile(w, r, outPath)
+		size := 1600
+		if qs := r.URL.Query().Get("size"); qs != "" {
+			if parsed, err := strconv.Atoi(qs); err == nil && parsed > 0 && parsed <= 4000 {
+				size = parsed
+			}
+		}
+
+		outPath, err := derive.GeneratePreview(s.cacheLayout, asset.ID, srcPath, size)
+		if err != nil {
+			slog.Error("preview generation failed", "asset_id", asset.ID, "error", err)
+			writeError(w, http.StatusInternalServerError, "preview generation failed")
+			return
+		}
+
+		http.ServeFile(w, r, outPath)
+		served, albumPath, assetID = true, asset.AlbumPath, asset.ID
+	}()
+
+	// Thumbnails are deliberately not recorded: an album grid requests one
+	// per tile, which would count a single visit as a view of every photo.
+	if served {
+		s.recordAssetView(r, albumPath, assetID)
+	}
 }
 
 func (s *Server) handleAssetOriginal(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	var served bool
+	var albumPath, assetID string
 
-	_, srcPath, ok := s.resolveAssetForDerivative(w, r)
-	if !ok {
-		return
+	func() {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+
+		asset, srcPath, ok := s.resolveAssetForDerivative(w, r)
+		if !ok {
+			return
+		}
+
+		http.ServeFile(w, r, srcPath)
+		served, albumPath, assetID = true, asset.AlbumPath, asset.ID
+	}()
+
+	if served {
+		s.recordOriginalHit(r, albumPath, assetID)
 	}
-
-	http.ServeFile(w, r, srcPath)
 }

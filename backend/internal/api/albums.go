@@ -6,43 +6,65 @@ import (
 )
 
 func (s *Server) handleAlbumsRoot(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	// served, albumPath and albumID carry the analytics event out of the
+	// locked section; see recordAlbumView for why it waits.
+	var served bool
+	var albumPath, albumID string
 
-	root, ok := s.snapshot.Albums[""]
-	if !ok {
-		writeError(w, http.StatusNotFound, "no root album")
-		return
+	func() {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+
+		root, ok := s.snapshot.Albums[""]
+		if !ok {
+			writeError(w, http.StatusNotFound, "no root album")
+			return
+		}
+
+		if !s.checkAlbumAccess(w, r, root) {
+			return
+		}
+
+		offset, limit := parsePagination(r)
+		opts := s.responseOpts(r)
+		writeJSON(w, http.StatusOK, albumToResponse(root, opts, offset, limit))
+		served, albumPath, albumID = true, root.Path, root.ID
+	}()
+
+	if served {
+		s.recordAlbumView(r, albumPath, albumID)
 	}
-
-	if !s.checkAlbumAccess(w, r, root) {
-		return
-	}
-
-	offset, limit := parsePagination(r)
-	opts := s.responseOpts(r)
-	writeJSON(w, http.StatusOK, albumToResponse(root, opts, offset, limit))
 }
 
 func (s *Server) handleAlbumByID(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	var served bool
+	var albumPath, albumID string
 
-	album, ok := s.albumsByID[id]
-	if !ok {
-		writeError(w, http.StatusNotFound, "album not found")
-		return
+	func() {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+
+		album, ok := s.albumsByID[id]
+		if !ok {
+			writeError(w, http.StatusNotFound, "album not found")
+			return
+		}
+
+		if !s.checkAlbumAccess(w, r, album) {
+			return
+		}
+
+		offset, limit := parsePagination(r)
+		opts := s.responseOpts(r)
+		writeJSON(w, http.StatusOK, albumToResponse(album, opts, offset, limit))
+		served, albumPath, albumID = true, album.Path, album.ID
+	}()
+
+	if served {
+		s.recordAlbumView(r, albumPath, albumID)
 	}
-
-	if !s.checkAlbumAccess(w, r, album) {
-		return
-	}
-
-	offset, limit := parsePagination(r)
-	opts := s.responseOpts(r)
-	writeJSON(w, http.StatusOK, albumToResponse(album, opts, offset, limit))
 }
 
 // parsePagination extracts offset and limit from query parameters.

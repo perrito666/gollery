@@ -11,6 +11,7 @@
     "backend": "postgres",
     "postgres_dsn_env": "GOLLERY_POSTGRES_DSN",
     "hash_ip": true,
+    "ip_salt": "change-me-or-set-GOLLERY_ANALYTICS_IP_SALT",
     "dedup_window_seconds": 300,
     "retain_events_days": 90
   }
