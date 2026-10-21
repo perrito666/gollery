@@ -313,6 +313,45 @@ Reasons:
 
 Analytics must not become a dependency for rendering the gallery correctly.
 
+### Where events are recorded
+
+Recording is wired into the API layer and runs after a handler has served its
+response:
+
+| Event | Endpoints |
+| --- | --- |
+| `album_view` | `GET /api/v1/albums/root`, `GET /api/v1/albums/{id}` |
+| `asset_view` | `GET /api/v1/assets/{id}`, `GET /api/v1/assets/{id}/preview` |
+| `original_hit` | `GET /api/v1/assets/{id}/original` |
+
+Thumbnails are not recorded, as above: an album grid requests one per tile, so
+counting them would report a single visit as a view of every asset in the
+album. Opening an asset reaches both the metadata and the preview endpoint;
+the dedup window collapses that pair into one `asset_view` per visitor.
+Requests that 404, or that access control refuses, record nothing.
+
+Handlers record once they have released the snapshot read lock, so an event
+write never holds that lock across a database round trip. For the same reason
+the recorder reads album configs from a value refreshed on reindex rather than
+from the API server behind its mutex.
+
+Visitor identity is `HashVisitorID(ip, salt)`. The salt comes from, in order:
+
+1. `analytics.ip_salt`, or the `GOLLERY_ANALYTICS_IP_SALT` environment
+   variable, which overrides it the way `GOLLERY_SESSION_SECRET` overrides the
+   session secret — prefer the environment variable, so the salt need not sit
+   in the config file;
+2. a value derived from the session secret;
+3. a random salt, with a warning logged.
+
+The first two are stable across restarts, which matters: a per-process salt
+would hash a returning visitor differently after every restart, breaking both
+the dedup window and unique-visitor counts.
+
+Only `analytics.enabled` is consulted so far. The per-event-type flags in
+`album.json` (`track_album_views`, `track_asset_views`, `track_original_hits`)
+are accepted by the config parser but not yet honoured.
+
 ---
 
 ## 12. GDPR-safe analytics requirements
@@ -356,6 +395,7 @@ Example global config:
     "backend": "postgres",
     "postgres_dsn_env": "GOLLERY_POSTGRES_DSN",
     "hash_ip": true,
+    "ip_salt": "set-me-or-use-GOLLERY_ANALYTICS_IP_SALT",
     "dedup_window_seconds": 1800,
     "retain_events_days": 90
   }

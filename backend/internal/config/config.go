@@ -67,12 +67,20 @@ type RateLimitConfig struct {
 
 // GlobalAnalyticsConfig holds server-level analytics settings.
 type GlobalAnalyticsConfig struct {
-	Enabled           bool   `json:"enabled"`
-	Backend           string `json:"backend"`
-	PostgresDSNEnv    string `json:"postgres_dsn_env"`
-	HashIP            bool   `json:"hash_ip"`
-	DedupWindowSecs   int    `json:"dedup_window_seconds"`
-	RetainEventsDays  int    `json:"retain_events_days"`
+	Enabled          bool   `json:"enabled"`
+	Backend          string `json:"backend"`
+	PostgresDSNEnv   string `json:"postgres_dsn_env"`
+	HashIP           bool   `json:"hash_ip"`
+	DedupWindowSecs  int    `json:"dedup_window_seconds"`
+	RetainEventsDays int    `json:"retain_events_days"`
+
+	// IPSalt salts the visitor hash. Keep it stable across restarts, or the
+	// same visitor hashes differently after each one, which breaks the dedup
+	// window and inflates unique-visitor counts. Prefer supplying it through
+	// GOLLERY_ANALYTICS_IP_SALT rather than storing it in the config file.
+	// When empty the server derives a salt from the session secret, and
+	// falls back to a random one if there is no session secret either.
+	IPSalt string `json:"ip_salt,omitempty"`
 }
 
 // AlbumConfig represents the declarative configuration from album.json.
@@ -362,6 +370,12 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 			cfg.Auth = &AuthConfig{}
 		}
 		cfg.Auth.SessionSecret = v
+	}
+	if v := os.Getenv("GOLLERY_ANALYTICS_IP_SALT"); v != "" {
+		if cfg.Analytics == nil {
+			cfg.Analytics = &GlobalAnalyticsConfig{}
+		}
+		cfg.Analytics.IPSalt = v
 	}
 
 	return &cfg, nil

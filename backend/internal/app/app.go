@@ -3,11 +3,15 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/perrito666/gollery/backend/internal/analytics"
@@ -52,6 +56,13 @@ func Run(ctx context.Context, configPath string) error {
 	configs := extractConfigs(scan)
 	slog.Info("initial scan complete", "albums", len(snap.Albums))
 
+	// albumConfigs mirrors the album configs for the analytics recorder. The
+	// recorder reads them without the API server's lock, so recording an
+	// event can never park a request behind a reindex, or a reindex behind a
+	// database write.
+	var albumConfigs atomic.Pointer[map[string]*config.AlbumConfig]
+	albumConfigs.Store(&configs)
+
 	// 4. Initialize API server.
 	srv := api.NewServer(snap, configs)
 	cacheLayout := cache.NewLayout(cfg.CacheDir)
@@ -93,7 +104,12 @@ func Run(ctx context.Context, configPath string) error {
 
 	// 7. Start filesystem watcher.
 	reindex := func() error {
-		return doReindex(srv, cfg.ContentRoot, cacheLayout)
+		newConfigs, err := doReindex(srv, cfg.ContentRoot, cacheLayout)
+		if err != nil {
+			return err
+		}
+		albumConfigs.Store(&newConfigs)
+		return nil
 	}
 	srv.SetAdmin(reindex)
 
@@ -101,7 +117,7 @@ func Run(ctx context.Context, configPath string) error {
 		ContentRoot: cfg.ContentRoot,
 		Reconcile: func(ctx context.Context, dirtyPaths []string) error {
 			slog.Info("reconciling changes", "dirty_paths", len(dirtyPaths))
-			return doReindex(srv, cfg.ContentRoot, cacheLayout)
+			return reindex()
 		},
 	})
 	go func() {
@@ -110,13 +126,29 @@ func Run(ctx context.Context, configPath string) error {
 		}
 	}()
 
-	// Set up analytics recorder if analytics are available.
+	// Set up analytics recorder if analytics are available. Without this the
+	// store stays empty: nothing else calls RecordEvent, so the aggregation
+	// job rolls up an empty events table every night.
+	//
+	// The api.AnalyticsStore interface used by the query routes
+	// (/albums/{id}/stats, /popular-assets, /admin/analytics/overview) still
+	// needs an adapter: QueryPopularAssets and QueryOverview have no
+	// implementation in the postgres store yet, so those routes stay
+	// unregistered.
 	if analyticsStore != nil {
-		// The analytics recorder uses the analytics.Store directly.
-		// The api.AnalyticsStore interface is for query routes and
-		// will need an adapter when wired. For now we skip the query
-		// adapter as it requires additional implementation.
-		_ = analyticsStore
+		srv.SetAnalyticsRecorder(api.NewAnalyticsRecorder(
+			analyticsStore,
+			func() map[string]*config.AlbumConfig {
+				if m := albumConfigs.Load(); m != nil {
+					return *m
+				}
+				return nil
+			},
+			cfg.Analytics.DedupWindowSecs,
+			analyticsIPSalt(cfg),
+		))
+		slog.Info("analytics recorder enabled",
+			"dedup_window_seconds", cfg.Analytics.DedupWindowSecs)
 	}
 
 	// 9. Start HTTP server.
@@ -153,15 +185,17 @@ func Run(ctx context.Context, configPath string) error {
 
 // doReindex performs a full rescan and updates the API server's snapshot.
 // If cacheLayout is non-nil, it purges orphaned derivative cache files.
-func doReindex(srv *api.Server, contentRoot string, cacheLayout *cache.Layout) error {
+// It returns the album configs it extracted so callers can refresh their
+// own view of them.
+func doReindex(srv *api.Server, contentRoot string, cacheLayout *cache.Layout) (map[string]*config.AlbumConfig, error) {
 	scan, err := fswalk.Scan(contentRoot)
 	if err != nil {
-		return fmt.Errorf("rescan: %w", err)
+		return nil, fmt.Errorf("rescan: %w", err)
 	}
 
 	snap, err := index.BuildSnapshot(contentRoot, scan)
 	if err != nil {
-		return fmt.Errorf("rebuild snapshot: %w", err)
+		return nil, fmt.Errorf("rebuild snapshot: %w", err)
 	}
 
 	configs := extractConfigs(scan)
@@ -191,7 +225,34 @@ func doReindex(srv *api.Server, contentRoot string, cacheLayout *cache.Layout) e
 	srv.SetScanErrors(scanErrors)
 
 	slog.Info("reindex complete", "albums", len(snap.Albums))
-	return nil
+	return configs, nil
+}
+
+// analyticsIPSalt returns the salt used to hash visitor IPs, in order of
+// preference: the configured analytics.ip_salt, a value derived from the
+// session secret, or a random salt.
+//
+// The first two are stable across restarts, which matters: a salt that
+// changed on every start would give the same visitor a new hash each time,
+// breaking both the dedup window and unique-visitor counts.
+func analyticsIPSalt(cfg *config.ServerConfig) string {
+	if cfg.Analytics != nil && cfg.Analytics.IPSalt != "" {
+		return cfg.Analytics.IPSalt
+	}
+
+	if cfg.Auth != nil && cfg.Auth.SessionSecret != "" {
+		sum := sha256.Sum256([]byte("gollery/analytics/ip-salt\x00" + cfg.Auth.SessionSecret))
+		return hex.EncodeToString(sum[:])
+	}
+
+	var b [32]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "gollery/analytics/ip-salt"
+	}
+	slog.Warn("analytics: no ip_salt configured and no session secret to derive one from, using a random salt",
+		"effect", "visitor dedup and unique counts reset on restart",
+		"fix", "set analytics.ip_salt or GOLLERY_ANALYTICS_IP_SALT")
+	return hex.EncodeToString(b[:])
 }
 
 // extractConfigs pulls album configs from the scan result.

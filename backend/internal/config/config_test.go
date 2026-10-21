@@ -437,6 +437,7 @@ func TestLoadServerConfig_EnvOverrides(t *testing.T) {
 	t.Setenv("GOLLERY_LISTEN_ADDR", ":9090")
 	t.Setenv("GOLLERY_POSTGRES_DSN", "postgres://override/db")
 	t.Setenv("GOLLERY_SESSION_SECRET", "env-secret")
+	t.Setenv("GOLLERY_ANALYTICS_IP_SALT", "env-salt")
 
 	cfg, err := LoadServerConfig(path)
 	if err != nil {
@@ -451,5 +452,8 @@ func TestLoadServerConfig_EnvOverrides(t *testing.T) {
 	}
 	if cfg.Auth == nil || cfg.Auth.SessionSecret != "env-secret" {
 		t.Error("GOLLERY_SESSION_SECRET should override auth.session_secret")
+	}
+	if cfg.Analytics == nil || cfg.Analytics.IPSalt != "env-salt" {
+		t.Error("GOLLERY_ANALYTICS_IP_SALT should override analytics.ip_salt")
 	}
 }

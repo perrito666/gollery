@@ -52,6 +52,33 @@ func (ar *AnalyticsRecorder) RecordOriginalHit(r *http.Request, albumPath, asset
 	ar.record(r, albumPath, assetID, analytics.EventOriginalHit)
 }
 
+// recordAlbumView records an album view if a recorder is configured.
+// Handlers must call this after releasing s.mu: recording writes to the
+// analytics store, and holding the read lock across that write would block
+// reindexing behind a database round trip.
+func (s *Server) recordAlbumView(r *http.Request, albumPath, albumID string) {
+	if s.analyticsRecorder == nil {
+		return
+	}
+	s.analyticsRecorder.RecordAlbumView(r, albumPath, albumID)
+}
+
+// recordAssetView records an asset view if a recorder is configured.
+func (s *Server) recordAssetView(r *http.Request, albumPath, assetID string) {
+	if s.analyticsRecorder == nil {
+		return
+	}
+	s.analyticsRecorder.RecordAssetView(r, albumPath, assetID)
+}
+
+// recordOriginalHit records an original download if a recorder is configured.
+func (s *Server) recordOriginalHit(r *http.Request, albumPath, assetID string) {
+	if s.analyticsRecorder == nil {
+		return
+	}
+	s.analyticsRecorder.RecordOriginalHit(r, albumPath, assetID)
+}
+
 func (ar *AnalyticsRecorder) record(r *http.Request, albumPath, objectID string, eventType analytics.EventType) {
 	if ar.store == nil {
 		return
